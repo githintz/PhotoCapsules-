@@ -1,0 +1,69 @@
+{
+ "_sources": {
+  "usno_rstt": "https://aa.usno.navy.mil/api/rstt/oneday (fetched 2026-10-31), times UT rounded to the minute",
+  "usno_phases": "https://aa.usno.navy.mil/api/moon/phases/year?year=2026",
+  "usno_seasons": "https://aa.usno.navy.mil/api/seasons?year=2026",
+  "nasa_lunar": "https://eclipse.gsfc.nasa.gov/LEdecade/LEdecade2021.html (TD of greatest eclipse; UT = TD - deltaT)",
+  "nasa_solar": "https://eclipse.gsfc.nasa.gov/SEdecade/SEdecade2021.html and SEpath2001/SE2026Aug12Tpath.html",
+  "imo": "https://www.imo.net/files/meteor-shower/cal2026.pdf (Table 5, maxima dates 2026)"
+ },
+ "usno_rstt": [
+  {"lat": 40.4168, "lon": -3.7038, "date": "2026-10-31", "sunrise": "06:43", "sunset": "17:13", "sunTransit": "11:58", "civilBegin": "06:15", "civilEnd": "17:41", "moonrise": "22:04", "moonset": "12:39", "moonTransit": "04:48", "fracillum": 0.65},
+  {"lat": -33.8688, "lon": 151.2093, "date": "2026-06-21", "sunrise": "21:00", "sunset": "06:54", "sunTransit": "01:57", "civilBegin": "20:32", "civilEnd": "07:22", "moonrise": "01:25", "moonset": "13:39", "moonTransit": "07:28", "fracillum": 0.46}
+ ],
+ "usno_phases_2026": [
+  ["2026-01-03T10:03","FULL"],["2026-01-10T15:48","LAST_QUARTER"],["2026-01-18T19:52","NEW"],["2026-01-26T04:47","FIRST_QUARTER"],
+  ["2026-02-01T22:09","FULL"],["2026-02-09T12:43","LAST_QUARTER"],["2026-02-17T12:01","NEW"],["2026-02-24T12:27","FIRST_QUARTER"],
+  ["2026-03-03T11:38","FULL"],["2026-03-11T09:38","LAST_QUARTER"],["2026-03-19T01:23","NEW"],["2026-03-25T19:18","FIRST_QUARTER"],
+  ["2026-04-02T02:12","FULL"],["2026-04-10T04:51","LAST_QUARTER"],["2026-04-17T11:52","NEW"],["2026-04-24T02:32","FIRST_QUARTER"],
+  ["2026-05-01T17:23","FULL"],["2026-05-09T21:10","LAST_QUARTER"],["2026-05-16T20:01","NEW"],["2026-05-23T11:11","FIRST_QUARTER"],
+  ["2026-05-31T08:45","FULL"],["2026-06-08T10:00","LAST_QUARTER"],["2026-06-15T02:54","NEW"],["2026-06-21T21:55","FIRST_QUARTER"],
+  ["2026-06-29T23:56","FULL"],["2026-07-07T19:29","LAST_QUARTER"],["2026-07-14T09:43","NEW"],["2026-07-21T11:05","FIRST_QUARTER"],
+  ["2026-07-29T14:36","FULL"],["2026-08-06T02:21","LAST_QUARTER"],["2026-08-12T17:37","NEW"],["2026-08-20T02:46","FIRST_QUARTER"],
+  ["2026-08-28T04:18","FULL"],["2026-09-04T07:51","LAST_QUARTER"],["2026-09-11T03:27","NEW"],["2026-09-18T20:44","FIRST_QUARTER"],
+  ["2026-09-26T16:49","FULL"],["2026-10-03T13:25","LAST_QUARTER"],["2026-10-10T15:50","NEW"],["2026-10-18T16:12","FIRST_QUARTER"],
+  ["2026-10-26T04:12","FULL"],["2026-11-01T20:28","LAST_QUARTER"],["2026-11-09T07:02","NEW"],["2026-11-17T11:48","FIRST_QUARTER"],
+  ["2026-11-24T14:53","FULL"],["2026-12-01T06:08","LAST_QUARTER"],["2026-12-09T00:52","NEW"],["2026-12-17T05:42","FIRST_QUARTER"],
+  ["2026-12-24T01:28","FULL"],["2026-12-30T18:59","LAST_QUARTER"]
+ ],
+ "usno_seasons_2026": {"march": "2026-03-20T14:46", "june": "2026-06-21T08:24", "september": "2026-09-23T00:05", "december": "2026-12-21T20:50"},
+ "nasa_lunar": [
+  {"td": "2025-03-14T06:59:56", "type": "TOTAL", "umbral": 1.178},
+  {"td": "2025-09-07T18:12:58", "type": "TOTAL", "umbral": 1.362},
+  {"td": "2026-03-03T11:34:52", "type": "TOTAL", "umbral": 1.151},
+  {"td": "2026-08-28T04:14:04", "type": "PARTIAL", "umbral": 0.930},
+  {"td": "2027-02-20T23:14:06", "type": "PENUMBRAL", "umbral": -0.057},
+  {"td": "2027-07-18T16:04:09", "type": "PENUMBRAL", "umbral": -1.068},
+  {"td": "2027-08-17T07:14:59", "type": "PENUMBRAL", "umbral": -0.525},
+  {"td": "2028-01-12T04:14:13", "type": "PARTIAL", "umbral": 0.066},
+  {"td": "2028-07-06T18:20:57", "type": "PARTIAL", "umbral": 0.389},
+  {"td": "2028-12-31T16:53:15", "type": "TOTAL", "umbral": 1.246},
+  {"td": "2029-06-26T03:23:22", "type": "TOTAL", "umbral": 1.844},
+  {"td": "2029-12-20T22:43:12", "type": "TOTAL", "umbral": 1.117},
+  {"td": "2030-06-15T18:34:34", "type": "PARTIAL", "umbral": 0.502},
+  {"td": "2030-12-09T22:28:51", "type": "PENUMBRAL", "umbral": -0.163}
+ ],
+ "nasa_lunar_durations_min": {"2026-03-03": {"partial": 207, "total": 58}, "2025-09-07": {"partial": 209, "total": 82}},
+ "nasa_solar": [
+  {"td": "2025-03-29T10:48:36", "type": "PARTIAL"},
+  {"td": "2025-09-21T19:43:04", "type": "PARTIAL"},
+  {"td": "2026-02-17T12:13:05", "type": "ANNULAR"},
+  {"td": "2026-08-12T17:47:05", "type": "TOTAL", "geLat": 65.225, "geLon": -25.228},
+  {"td": "2027-02-06T16:00:47", "type": "ANNULAR"},
+  {"td": "2027-08-02T10:07:49", "type": "TOTAL"},
+  {"td": "2028-01-26T15:08:58", "type": "ANNULAR"},
+  {"td": "2028-07-22T02:56:39", "type": "TOTAL"},
+  {"td": "2029-01-14T17:13:47", "type": "PARTIAL"},
+  {"td": "2029-06-12T04:06:13", "type": "PARTIAL"},
+  {"td": "2029-07-11T15:37:18", "type": "PARTIAL"},
+  {"td": "2029-12-05T15:03:57", "type": "PARTIAL"},
+  {"td": "2030-06-01T06:29:13", "type": "ANNULAR"},
+  {"td": "2030-11-25T06:51:37", "type": "TOTAL"}
+ ],
+ "nasa_path_2026aug12": [
+  {"ut": "2026-08-12T17:46:00", "nLat": 65.5933, "nLon": -22.12, "sLat": 64.71, "sLon": -28.1067, "cLat": 65.1717, "cLon": -25.205, "widthKm": 294},
+  {"ut": "2026-08-12T18:20:00", "nLat": 48.2083, "nLon": -10.2667, "sLat": 48.1467, "sLon": -15.6383, "cLat": 48.2117, "cLon": -13.0483, "widthKm": 319},
+  {"ut": "2026-08-12T18:26:00", "nLat": 44.4567, "nLon": -4.9483, "sLat": 44.8317, "sLon": -11.42, "cLat": 44.7133, "cLon": -8.3983, "widthKm": 311}
+ ],
+ "imo_peaks_2026": [["QUA","2026-01-03"],["LYR","2026-04-22"],["ETA","2026-05-06"],["SDA","2026-07-31"],["PER","2026-08-13"],["DRA","2026-10-09"],["ORI","2026-10-21"],["LEO","2026-11-17"],["GEM","2026-12-14"],["URS","2026-12-22"]]
+}

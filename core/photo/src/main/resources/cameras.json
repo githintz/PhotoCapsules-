@@ -1,0 +1,1225 @@
+[
+ {
+  "make": "Generic",
+  "model": "Full frame 24 MP",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Generic",
+  "model": "Full frame 45 MP",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 8256,
+  "pixelsHigh": 5504
+ },
+ {
+  "make": "Generic",
+  "model": "APS-C (Nikon/Sony/Fuji) 24 MP",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Generic",
+  "model": "APS-C (Canon) 24 MP",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Generic",
+  "model": "APS-H (1.3x)",
+  "sensorWidthMm": 28.7,
+  "sensorHeightMm": 19.0,
+  "pixelsWide": 4896,
+  "pixelsHigh": 3264
+ },
+ {
+  "make": "Generic",
+  "model": "Micro Four Thirds 20 MP",
+  "sensorWidthMm": 17.3,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "Generic",
+  "model": "1-inch 20 MP",
+  "sensorWidthMm": 13.2,
+  "sensorHeightMm": 8.8,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648
+ },
+ {
+  "make": "Generic",
+  "model": "1/1.3-inch 50 MP",
+  "sensorWidthMm": 9.8,
+  "sensorHeightMm": 7.4,
+  "pixelsWide": 8160,
+  "pixelsHigh": 6144
+ },
+ {
+  "make": "Generic",
+  "model": "1/2.3-inch 12 MP",
+  "sensorWidthMm": 6.17,
+  "sensorHeightMm": 4.55,
+  "pixelsWide": 4000,
+  "pixelsHigh": 3000
+ },
+ {
+  "make": "Generic",
+  "model": "Medium format 44x33 100 MP",
+  "sensorWidthMm": 43.8,
+  "sensorHeightMm": 32.9,
+  "pixelsWide": 11648,
+  "pixelsHigh": 8736
+ },
+ {
+  "make": "Generic",
+  "model": "Medium format 44x33 50 MP",
+  "sensorWidthMm": 43.8,
+  "sensorHeightMm": 32.9,
+  "pixelsWide": 8256,
+  "pixelsHigh": 6192
+ },
+ {
+  "make": "Generic",
+  "model": "Medium format 6x4.5 film",
+  "sensorWidthMm": 56.0,
+  "sensorHeightMm": 41.5
+ },
+ {
+  "make": "Generic",
+  "model": "6x6 film",
+  "sensorWidthMm": 56.0,
+  "sensorHeightMm": 56.0
+ },
+ {
+  "make": "Generic",
+  "model": "6x7 film",
+  "sensorWidthMm": 69.0,
+  "sensorHeightMm": 56.0
+ },
+ {
+  "make": "Generic",
+  "model": "4x5 inch film",
+  "sensorWidthMm": 120.0,
+  "sensorHeightMm": 96.0
+ },
+ {
+  "make": "Generic",
+  "model": "35mm film",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R5",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 8192,
+  "pixelsHigh": 5464
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R5 Mark II",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 8192,
+  "pixelsHigh": 5464
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R6",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R6 Mark II",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R6 Mark III",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 7008,
+  "pixelsHigh": 4672
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R8",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6720,
+  "pixelsHigh": 4480
+ },
+ {
+  "make": "Canon",
+  "model": "EOS RP",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R3",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R1",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS Ra",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6720,
+  "pixelsHigh": 4480
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 5D Mark IV",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6720,
+  "pixelsHigh": 4480
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 5D Mark III",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 5760,
+  "pixelsHigh": 3840
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 5DS R",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 8688,
+  "pixelsHigh": 5792
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 6D",
+  "sensorWidthMm": 35.8,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 6D Mark II",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Canon",
+  "model": "EOS-1D X Mark III",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R7",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.8,
+  "pixelsWide": 6960,
+  "pixelsHigh": 4640
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R10",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R50",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS R100",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 90D",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.8,
+  "pixelsWide": 6960,
+  "pixelsHigh": 4640
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 80D",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 7D Mark II",
+  "sensorWidthMm": 22.4,
+  "sensorHeightMm": 15.0,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 250D / Rebel SL3",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS 2000D / Rebel T7",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS M50 Mark II",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Canon",
+  "model": "EOS M6 Mark II",
+  "sensorWidthMm": 22.3,
+  "sensorHeightMm": 14.8,
+  "pixelsWide": 6960,
+  "pixelsHigh": 4640
+ },
+ {
+  "make": "Nikon",
+  "model": "Z9",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 8256,
+  "pixelsHigh": 5504
+ },
+ {
+  "make": "Nikon",
+  "model": "Z8",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 8256,
+  "pixelsHigh": 5504
+ },
+ {
+  "make": "Nikon",
+  "model": "Z7 II",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 8256,
+  "pixelsHigh": 5504
+ },
+ {
+  "make": "Nikon",
+  "model": "Z7",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 8256,
+  "pixelsHigh": 5504
+ },
+ {
+  "make": "Nikon",
+  "model": "Z6 III",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6048,
+  "pixelsHigh": 4032
+ },
+ {
+  "make": "Nikon",
+  "model": "Z6 II",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6048,
+  "pixelsHigh": 4024
+ },
+ {
+  "make": "Nikon",
+  "model": "Z6",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6048,
+  "pixelsHigh": 4024
+ },
+ {
+  "make": "Nikon",
+  "model": "Z5",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6016,
+  "pixelsHigh": 4016
+ },
+ {
+  "make": "Nikon",
+  "model": "Z5 II",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6048,
+  "pixelsHigh": 4032
+ },
+ {
+  "make": "Nikon",
+  "model": "Zf",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6048,
+  "pixelsHigh": 4032
+ },
+ {
+  "make": "Nikon",
+  "model": "D850",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 8256,
+  "pixelsHigh": 5504
+ },
+ {
+  "make": "Nikon",
+  "model": "D810",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 7360,
+  "pixelsHigh": 4912
+ },
+ {
+  "make": "Nikon",
+  "model": "D780",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6048,
+  "pixelsHigh": 4024
+ },
+ {
+  "make": "Nikon",
+  "model": "D750",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6016,
+  "pixelsHigh": 4016
+ },
+ {
+  "make": "Nikon",
+  "model": "D610",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 6016,
+  "pixelsHigh": 4016
+ },
+ {
+  "make": "Nikon",
+  "model": "D6",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 5568,
+  "pixelsHigh": 3712
+ },
+ {
+  "make": "Nikon",
+  "model": "D5",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 5568,
+  "pixelsHigh": 3712
+ },
+ {
+  "make": "Nikon",
+  "model": "Z50",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.7,
+  "pixelsWide": 5568,
+  "pixelsHigh": 3712
+ },
+ {
+  "make": "Nikon",
+  "model": "Z50 II",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.7,
+  "pixelsWide": 5568,
+  "pixelsHigh": 3712
+ },
+ {
+  "make": "Nikon",
+  "model": "Zfc",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.7,
+  "pixelsWide": 5568,
+  "pixelsHigh": 3712
+ },
+ {
+  "make": "Nikon",
+  "model": "Z30",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.7,
+  "pixelsWide": 5568,
+  "pixelsHigh": 3712
+ },
+ {
+  "make": "Nikon",
+  "model": "D500",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.7,
+  "pixelsWide": 5568,
+  "pixelsHigh": 3712
+ },
+ {
+  "make": "Nikon",
+  "model": "D7500",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.7,
+  "pixelsWide": 5568,
+  "pixelsHigh": 3712
+ },
+ {
+  "make": "Nikon",
+  "model": "D7200",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Nikon",
+  "model": "D5600",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Nikon",
+  "model": "D3500",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 1",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 8640,
+  "pixelsHigh": 5760
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 1 II",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 8640,
+  "pixelsHigh": 5760
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7R V",
+  "sensorWidthMm": 35.7,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 9504,
+  "pixelsHigh": 6336
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7R IV",
+  "sensorWidthMm": 35.7,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 9504,
+  "pixelsHigh": 6336
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7R III",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 7952,
+  "pixelsHigh": 5304
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7 IV",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 7008,
+  "pixelsHigh": 4672
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7 III",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7 II",
+  "sensorWidthMm": 35.8,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7S III",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 4240,
+  "pixelsHigh": 2832
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7S II",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 4240,
+  "pixelsHigh": 2832
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7C",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7C II",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 7008,
+  "pixelsHigh": 4672
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7CR",
+  "sensorWidthMm": 35.7,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 9504,
+  "pixelsHigh": 6336
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 9 II",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 9 III",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 7 V",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 7008,
+  "pixelsHigh": 4672
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 6700",
+  "sensorWidthMm": 23.3,
+  "sensorHeightMm": 15.5,
+  "pixelsWide": 6192,
+  "pixelsHigh": 4128
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 6600",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 6400",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "Alpha 6100",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "ZV-E10",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sony",
+  "model": "RX100 VII",
+  "sensorWidthMm": 13.2,
+  "sensorHeightMm": 8.8,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648
+ },
+ {
+  "make": "Sony",
+  "model": "RX10 IV",
+  "sensorWidthMm": 13.2,
+  "sensorHeightMm": 8.8,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-T5",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 7728,
+  "pixelsHigh": 5152
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-T4",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-T3",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-T30 II",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-T50",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 7728,
+  "pixelsHigh": 5152
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-H2",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 7728,
+  "pixelsHigh": 5152
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-H2S",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-S20",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-S10",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-Pro3",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X100VI",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 7728,
+  "pixelsHigh": 5152,
+  "fixedFocalMm": 23.0
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X100V",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160,
+  "fixedFocalMm": 23.0
+ },
+ {
+  "make": "Fujifilm",
+  "model": "X-E4",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6240,
+  "pixelsHigh": 4160
+ },
+ {
+  "make": "Fujifilm",
+  "model": "GFX 100S",
+  "sensorWidthMm": 43.8,
+  "sensorHeightMm": 32.9,
+  "pixelsWide": 11648,
+  "pixelsHigh": 8736
+ },
+ {
+  "make": "Fujifilm",
+  "model": "GFX 100 II",
+  "sensorWidthMm": 43.8,
+  "sensorHeightMm": 32.9,
+  "pixelsWide": 11648,
+  "pixelsHigh": 8736
+ },
+ {
+  "make": "Fujifilm",
+  "model": "GFX 50S II",
+  "sensorWidthMm": 43.8,
+  "sensorHeightMm": 32.9,
+  "pixelsWide": 8256,
+  "pixelsHigh": 6192
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix S5 II",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix S5",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix S1R",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 8368,
+  "pixelsHigh": 5584
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix S1",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix S9",
+  "sensorWidthMm": 35.6,
+  "sensorHeightMm": 23.8,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix GH6",
+  "sensorWidthMm": 17.3,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5776,
+  "pixelsHigh": 4336
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix GH7",
+  "sensorWidthMm": 17.3,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5776,
+  "pixelsHigh": 4336
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix GH5",
+  "sensorWidthMm": 17.3,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix G9",
+  "sensorWidthMm": 17.3,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix G9 II",
+  "sensorWidthMm": 17.3,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5776,
+  "pixelsHigh": 4336
+ },
+ {
+  "make": "Panasonic",
+  "model": "Lumix G100",
+  "sensorWidthMm": 17.3,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "OM System / Olympus",
+  "model": "OM-1",
+  "sensorWidthMm": 17.4,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "OM System / Olympus",
+  "model": "OM-1 Mark II",
+  "sensorWidthMm": 17.4,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "OM System / Olympus",
+  "model": "OM-5",
+  "sensorWidthMm": 17.4,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "OM System / Olympus",
+  "model": "E-M1 Mark III",
+  "sensorWidthMm": 17.4,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "OM System / Olympus",
+  "model": "E-M5 Mark III",
+  "sensorWidthMm": 17.4,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "OM System / Olympus",
+  "model": "E-M10 Mark IV",
+  "sensorWidthMm": 17.4,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5184,
+  "pixelsHigh": 3888
+ },
+ {
+  "make": "Pentax",
+  "model": "K-1 Mark II",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 7360,
+  "pixelsHigh": 4912
+ },
+ {
+  "make": "Pentax",
+  "model": "K-3 Mark III",
+  "sensorWidthMm": 23.3,
+  "sensorHeightMm": 15.5,
+  "pixelsWide": 6192,
+  "pixelsHigh": 4128
+ },
+ {
+  "make": "Pentax",
+  "model": "KF",
+  "sensorWidthMm": 23.5,
+  "sensorHeightMm": 15.6,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Leica",
+  "model": "Q3",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 9520,
+  "pixelsHigh": 6336,
+  "fixedFocalMm": 28.0
+ },
+ {
+  "make": "Leica",
+  "model": "Q2",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 8368,
+  "pixelsHigh": 5584,
+  "fixedFocalMm": 28.0
+ },
+ {
+  "make": "Leica",
+  "model": "M11",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 9528,
+  "pixelsHigh": 6328
+ },
+ {
+  "make": "Leica",
+  "model": "SL2",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 8368,
+  "pixelsHigh": 5584
+ },
+ {
+  "make": "Leica",
+  "model": "SL3",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 9520,
+  "pixelsHigh": 6336
+ },
+ {
+  "make": "Hasselblad",
+  "model": "X2D 100C",
+  "sensorWidthMm": 43.8,
+  "sensorHeightMm": 32.9,
+  "pixelsWide": 11656,
+  "pixelsHigh": 8742
+ },
+ {
+  "make": "Hasselblad",
+  "model": "X1D II 50C",
+  "sensorWidthMm": 43.8,
+  "sensorHeightMm": 32.9,
+  "pixelsWide": 8272,
+  "pixelsHigh": 6200
+ },
+ {
+  "make": "Sigma",
+  "model": "fp",
+  "sensorWidthMm": 35.9,
+  "sensorHeightMm": 23.9,
+  "pixelsWide": 6000,
+  "pixelsHigh": 4000
+ },
+ {
+  "make": "Sigma",
+  "model": "fp L",
+  "sensorWidthMm": 36.0,
+  "sensorHeightMm": 24.0,
+  "pixelsWide": 9520,
+  "pixelsHigh": 6328
+ },
+ {
+  "make": "DJI",
+  "model": "Mavic 3 (Hasselblad)",
+  "sensorWidthMm": 17.3,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5280,
+  "pixelsHigh": 3956,
+  "fixedFocalMm": 12.0
+ },
+ {
+  "make": "DJI",
+  "model": "Mavic 3 Pro (Hasselblad)",
+  "sensorWidthMm": 17.3,
+  "sensorHeightMm": 13.0,
+  "pixelsWide": 5280,
+  "pixelsHigh": 3956,
+  "fixedFocalMm": 12.0
+ },
+ {
+  "make": "DJI",
+  "model": "Air 3",
+  "sensorWidthMm": 9.6,
+  "sensorHeightMm": 7.2,
+  "pixelsWide": 8064,
+  "pixelsHigh": 6048,
+  "fixedFocalMm": 6.7
+ },
+ {
+  "make": "DJI",
+  "model": "Air 2S",
+  "sensorWidthMm": 13.2,
+  "sensorHeightMm": 8.8,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648,
+  "fixedFocalMm": 8.1
+ },
+ {
+  "make": "DJI",
+  "model": "Mini 4 Pro",
+  "sensorWidthMm": 9.6,
+  "sensorHeightMm": 7.2,
+  "pixelsWide": 8064,
+  "pixelsHigh": 6048,
+  "fixedFocalMm": 6.7
+ },
+ {
+  "make": "DJI",
+  "model": "Mini 3 Pro",
+  "sensorWidthMm": 9.6,
+  "sensorHeightMm": 7.2,
+  "pixelsWide": 8064,
+  "pixelsHigh": 6048,
+  "fixedFocalMm": 6.7
+ },
+ {
+  "make": "DJI",
+  "model": "Mini 2",
+  "sensorWidthMm": 6.17,
+  "sensorHeightMm": 4.55,
+  "pixelsWide": 4000,
+  "pixelsHigh": 3000,
+  "fixedFocalMm": 4.3
+ },
+ {
+  "make": "DJI",
+  "model": "Phantom 4 Pro V2.0",
+  "sensorWidthMm": 13.2,
+  "sensorHeightMm": 8.8,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648,
+  "fixedFocalMm": 8.8
+ },
+ {
+  "make": "DJI",
+  "model": "Avata 2",
+  "sensorWidthMm": 6.4,
+  "sensorHeightMm": 4.8,
+  "pixelsWide": 4000,
+  "pixelsHigh": 3000
+ },
+ {
+  "make": "Autel",
+  "model": "EVO II Pro",
+  "sensorWidthMm": 13.2,
+  "sensorHeightMm": 8.8,
+  "pixelsWide": 5472,
+  "pixelsHigh": 3648,
+  "fixedFocalMm": 10.57
+ },
+ {
+  "make": "Apple",
+  "model": "iPhone 15 Pro (main)",
+  "sensorWidthMm": 9.8,
+  "sensorHeightMm": 7.3,
+  "pixelsWide": 8064,
+  "pixelsHigh": 6048,
+  "fixedFocalMm": 6.765
+ },
+ {
+  "make": "Apple",
+  "model": "iPhone 16 Pro (main)",
+  "sensorWidthMm": 9.8,
+  "sensorHeightMm": 7.3,
+  "pixelsWide": 8064,
+  "pixelsHigh": 6048,
+  "fixedFocalMm": 6.765
+ },
+ {
+  "make": "Google",
+  "model": "Pixel 8 Pro (main)",
+  "sensorWidthMm": 9.8,
+  "sensorHeightMm": 7.4,
+  "pixelsWide": 8160,
+  "pixelsHigh": 6144,
+  "fixedFocalMm": 6.9
+ },
+ {
+  "make": "Samsung",
+  "model": "Galaxy S24 Ultra (main)",
+  "sensorWidthMm": 9.6,
+  "sensorHeightMm": 7.2,
+  "pixelsWide": 12000,
+  "pixelsHigh": 9000,
+  "fixedFocalMm": 6.3
+ }
+]

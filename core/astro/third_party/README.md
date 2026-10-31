@@ -1,0 +1,1 @@
+Astronomy Engine v2.1.19 (Kotlin) by Don Cross, MIT License. Source: https://github.com/cosinekitty/astronomy/blob/v2.1.19/source/kotlin/src/main/kotlin/io/github/cosinekitty/astronomy/astronomy.kt — vendored unmodified.
