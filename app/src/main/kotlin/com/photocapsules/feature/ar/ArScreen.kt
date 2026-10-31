@@ -77,7 +77,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tan
 
-enum class ArMode(val title: String) { SUN_MOON("Sun & Moon AR"), NIGHT("Night AR"), DOF("DoF AR"), FOV("FoV AR"), SPOT_STARS("Spot Stars AR") }
+enum class ArMode(val title: String) { SUN_MOON("Sun & Moon AR"), NIGHT("Night AR"), DOF("DoF AR"), FOV("FoV AR"), SPOT_STARS("Spot Stars AR"), FIND_TARGET("Point at the target") }
 
 /** Pixel projector for one frame: true horizontal coords → screen pixels. */
 private class Projector(val r: FloatArray, val w: Float, val h: Float, val fPx: Double, val declination: Double, val azOffset: Double, val altOffset: Double) {
@@ -129,6 +129,13 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
     var calibrating by remember { mutableStateOf(false) }
     var lockedFrame by remember { mutableStateOf<List<DoubleArray>?>(null) }
     val projHolder = remember { arrayOfNulls<Projector>(1) }
+    val needsSky = mode == ArMode.SUN_MOON || mode == ArMode.NIGHT || mode == ArMode.SPOT_STARS || mode == ArMode.FIND_TARGET
+    // Sky data is recomputed in the background when the displayed minute changes; frames only project it.
+    val arSky by androidx.compose.runtime.produceState<ArSky?>(null, instant.epochSecond / 60, needsSky) {
+        if (needsSky) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            computeArSky(where, instant, zone, mode == ArMode.NIGHT || mode == ArMode.SPOT_STARS, request.meteorShowerCode)
+        }
+    }
 
     DisposableEffect(Unit) {
         val act = context as? Activity
@@ -178,12 +185,13 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
             val proj = Projector(tracker.rotation.copyOf(), w, h, fPx, declination, azOffset, altOffset)
             projHolder[0] = proj
             drawGrid(proj)
+            val sky = arSky
             when (mode) {
-                ArMode.SUN_MOON -> drawSunMoon(proj, where, instant, zone)
-                ArMode.NIGHT -> drawNight(proj, where, instant, zone, request.meteorShowerCode)
+                ArMode.SUN_MOON, ArMode.FIND_TARGET -> sky?.let { drawSunMoon(proj, it, zone) }
+                ArMode.NIGHT -> sky?.let { drawNight(proj, it, zone) }
                 ArMode.DOF -> drawGround(proj, request, settings.deviceHeightM, settings.units)
                 ArMode.FOV -> drawFrame(proj, request, lockedFrame)
-                ArMode.SPOT_STARS -> drawSpotStars(proj, where, instant, request)
+                ArMode.SPOT_STARS -> drawSpotStars(proj, sky, where, instant, request)
             }
             // Centre crosshair
             drawLine(Color.White, Offset(w / 2 - 20, h / 2), Offset(w / 2 + 20, h / 2), 2f)
@@ -219,6 +227,10 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
                     projHolder[0]?.let { p -> AppState.measuredDeclination.value = minAbsDeclination(p, where, instant) }
                     onBack()
                 }, colors = ButtonDefaults.buttonColors(containerColor = Palette.Accent, contentColor = Color.Black)) { Text("Use declination") }
+                if (mode == ArMode.FIND_TARGET) Button(onClick = {
+                    projHolder[0]?.let { p -> AppState.findTarget.value = p.center() }
+                    onBack()
+                }, colors = ButtonDefaults.buttonColors(containerColor = Palette.Accent, contentColor = Color.Black)) { Text("Use this direction") }
                 if (mode == ArMode.FOV) Text(if (lockedFrame == null) "Tap to lock frame" else "Tap to unlock", color = Color.White, fontSize = 12.sp)
                 else if (mode != ArMode.DOF) Text("Swipe: time · tap edges: ±1 day", color = Color.White, fontSize = 11.sp)
             } else {
@@ -302,78 +314,89 @@ private fun DrawScope.drawGrid(p: Projector) {
     }
 }
 
-private fun DrawScope.drawBodyPath(p: Projector, body: SkyBody, where: GeoPoint, instant: Instant, zone: java.time.ZoneId, color: Color) {
+/** Everything the AR overlays need for one minute of time, computed off the main thread. */
+class ArSky(
+    val sunPath: List<Pair<Instant, com.photocapsules.core.astro.BodyPosition>>,
+    val moonPath: List<Pair<Instant, com.photocapsules.core.astro.BodyPosition>>,
+    val sunRiseSet: List<Double>, val moonRiseSet: List<Double>,
+    val sun: com.photocapsules.core.astro.BodyPosition,
+    val moon: com.photocapsules.core.astro.MoonInfo,
+    val decCircles: List<Pair<Int, List<HorizontalCoord>>>, val hourCircles: List<List<HorizontalCoord>>,
+    val equator: List<HorizontalCoord>, val arch: List<HorizontalCoord>, val gc: HorizontalCoord,
+    val ncp: HorizontalCoord, val scp: HorizontalCoord, val polaris: HorizontalCoord,
+    val trails: List<List<HorizontalCoord>>,
+    val radiants: List<Triple<String, Boolean, HorizontalCoord>>, val radiantPath: List<HorizontalCoord>,
+)
+
+fun computeArSky(where: GeoPoint, instant: Instant, zone: java.time.ZoneId, night: Boolean, showerCode: String?): ArSky {
     val date = instant.atZone(zone).toLocalDate()
     val (s, e) = DayEvents.dayWindow(date, zone)
-    val path = DayEvents.path(body, s, e, where, 10.0)
+    val sd = DayEvents.sun(date, zone, where); val md = DayEvents.moon(date, zone, where)
+    val sunPath = DayEvents.path(SkyBody.SUN, s, e, where, 10.0)
+    val moonPath = DayEvents.path(SkyBody.MOON, s, e, where, 10.0)
+    var dec = emptyList<Pair<Int, List<HorizontalCoord>>>(); var hours = emptyList<List<HorizontalCoord>>()
+    var eq = emptyList<HorizontalCoord>(); var arch = emptyList<HorizontalCoord>(); var trails = emptyList<List<HorizontalCoord>>()
+    var radiants = emptyList<Triple<String, Boolean, HorizontalCoord>>(); var radPath = emptyList<HorizontalCoord>()
+    if (night) {
+        dec = (-80..80 step 10).map { it to NightSky.declinationCircle(it.toDouble(), instant, where, 4.0) }
+        hours = (0 until 24).map { NightSky.hourCircle(it * 15.0, instant, where, 4.0) }
+        eq = NightSky.declinationCircle(0.0, instant, where, 2.0)
+        arch = MilkyWay.arch(instant, where, 2.0).map { it.second }
+        // Star-trail pattern: 1-hour arcs on a fixed grid covering the whole sky.
+        trails = (0 until 360 step 30).flatMap { az -> listOf(10, 30, 50, 70).map { alt -> NightSky.starTrailArc(HorizontalCoord(az.toDouble(), alt.toDouble()), instant, where, 3600.0, 10) } }
+        val active = MeteorShowers.active(instant)
+        radiants = active.map { o -> Triple(o.shower.name, o.shower.code == showerCode, MeteorShowers.radiantPosition(o, instant, where)) }
+        active.firstOrNull { it.shower.code == showerCode }?.let { occ ->
+            radPath = (0..96).map { i -> s.plusSeconds((e.epochSecond - s.epochSecond) * i / 96) }.map { MeteorShowers.radiantPosition(occ, it, where) }
+        }
+    }
+    return ArSky(sunPath, moonPath, listOfNotNull(sd.sunrise?.azimuth, sd.sunset?.azimuth), listOfNotNull(md.moonrise?.azimuth, md.moonset?.azimuth),
+        Sky.position(SkyBody.SUN, instant, where), MoonCalc.info(instant, where), dec, hours, eq, arch, MilkyWay.galacticCenter(instant, where),
+        NightSky.northCelestialPole(instant, where), NightSky.southCelestialPole(instant, where), NightSky.polaris(instant, where), trails, radiants, radPath)
+}
+
+private fun DrawScope.drawBodyPath(p: Projector, path: List<Pair<Instant, com.photocapsules.core.astro.BodyPosition>>, riseSet: List<Double>, zone: java.time.ZoneId, color: Color) {
     polyline(p, path.map { HorizontalCoord(it.second.azimuth, it.second.altitude) }, color, 4f)
-    // Hour marks
     path.filter { it.first.atZone(zone).minute == 0 }.forEach { (t, pos) ->
         if (pos.altitude > -5) p.project(pos.azimuth, pos.altitude)?.let {
             drawCircle(color, 6f, it); text(t.atZone(zone).hour.toString() + "h", it + Offset(8f, -8f), color, 24f)
         }
     }
-    // Rise/set directions
-    val day = if (body == SkyBody.SUN) DayEvents.sun(date, zone, where).let { listOf(it.sunrise, it.sunset) } else DayEvents.moon(date, zone, where).let { listOf(it.moonrise, it.moonset) }
-    day.filterNotNull().forEachIndexed { i, ev ->
-        polyline(p, listOf(HorizontalCoord(ev.azimuth, -10.0), HorizontalCoord(ev.azimuth, 5.0)), if (i == 0) color else color.copy(alpha = 0.6f), 6f)
-    }
+    riseSet.forEachIndexed { i, az -> polyline(p, listOf(HorizontalCoord(az, -10.0), HorizontalCoord(az, 5.0)), if (i == 0) color else color.copy(alpha = 0.6f), 6f) }
 }
 
-private fun DrawScope.drawSunMoon(p: Projector, where: GeoPoint, instant: Instant, zone: java.time.ZoneId) {
-    drawBodyPath(p, SkyBody.SUN, where, instant, zone, Palette.Sun)
-    drawBodyPath(p, SkyBody.MOON, where, instant, zone, Palette.Moon)
-    val sun = Sky.position(SkyBody.SUN, instant, where)
-    p.project(sun.azimuth, sun.altitude)?.let { drawCircle(Palette.Sun, 26f, it); text("Sun", it + Offset(30f, 0f), Palette.Sun) }
-    val m = MoonCalc.info(instant, where)
+private fun DrawScope.drawSunMoon(p: Projector, sky: ArSky, zone: java.time.ZoneId) {
+    drawBodyPath(p, sky.sunPath, sky.sunRiseSet, zone, Palette.Sun)
+    drawBodyPath(p, sky.moonPath, sky.moonRiseSet, zone, Palette.Moon)
+    p.project(sky.sun.azimuth, sky.sun.altitude)?.let { drawCircle(Palette.Sun, 26f, it); text("Sun", it + Offset(30f, 0f), Palette.Sun) }
+    val m = sky.moon
     p.project(m.position.azimuth, m.position.altitude)?.let { o ->
         drawMoon(m.phaseAngle, m.brightLimbFromZenith, Color.Transparent, o, 26f)
         text("Moon ${Fmt.pct(m.illumination)}", o + Offset(30f, 0f), Palette.Moon)
     }
 }
 
-private fun DrawScope.drawNight(p: Projector, where: GeoPoint, instant: Instant, zone: java.time.ZoneId, showerCode: String?) {
-    // RA/Dec grid (10° steps in Dec, 1 h in RA)
-    for (dec in -80..80 step 10) polyline(p, NightSky.declinationCircle(dec.toDouble(), instant, where, 4.0), Color(0x553F6FD8), if (dec == 0) 3f else 1.2f)
-    for (raH in 0 until 24) polyline(p, NightSky.hourCircle(raH * 15.0, instant, where, 4.0), Color(0x333F6FD8), 1.2f)
-    // Celestial equator
-    polyline(p, NightSky.declinationCircle(0.0, instant, where, 2.0), Color(0xFF6FA8FF), 3f)
-    // Milky Way band: galactic equator ±8°
-    val arch = MilkyWay.arch(instant, where, 2.0)
-    polyline(p, arch.map { it.second }, Palette.MilkyWay.copy(alpha = 0.9f), 10f)
-    MilkyWay.galacticCenter(instant, where).let { gc -> p.project(gc.azimuth, gc.altitude)?.let { drawCircle(Palette.Red, 16f, it); text("Galactic Center", it + Offset(20f, 0f), Palette.Red) } }
-    // Poles & Polaris
-    NightSky.northCelestialPole(instant, where).let { c -> p.project(c.azimuth, c.altitude)?.let { drawCircle(Color.White, 10f, it, style = Stroke(3f)); text("NCP", it + Offset(14f, 0f)) } }
-    NightSky.southCelestialPole(instant, where).let { c -> p.project(c.azimuth, c.altitude)?.let { drawCircle(Color.White, 10f, it, style = Stroke(3f)); text("SCP", it + Offset(14f, 0f)) } }
-    NightSky.polaris(instant, where).let { c -> p.project(c.azimuth, c.altitude)?.let { drawCircle(Color.White, 6f, it); text("Polaris", it + Offset(10f, 16f), sizePx = 24f) } }
-    // Star-trail pattern: 1-hour arcs on a grid around the view centre
-    val center = p.center()
-    for (dAz in -40..40 step 20) for (dAlt in -30..30 step 15) {
-        val start = HorizontalCoord(normalizeDegrees(center.azimuth + dAz), (center.altitude + dAlt).coerceIn(-5.0, 88.0))
-        val arc = NightSky.starTrailArc(start, instant, where, 3600.0, 10)
+private fun DrawScope.drawNight(p: Projector, sky: ArSky, zone: java.time.ZoneId) {
+    for ((dec, c) in sky.decCircles) polyline(p, c, Color(0x553F6FD8), if (dec == 0) 3f else 1.2f)
+    for (c in sky.hourCircles) polyline(p, c, Color(0x333F6FD8), 1.2f)
+    polyline(p, sky.equator, Color(0xFF6FA8FF), 3f)
+    polyline(p, sky.arch, Palette.MilkyWay.copy(alpha = 0.9f), 10f)
+    p.project(sky.gc.azimuth, sky.gc.altitude)?.let { drawCircle(Palette.Red, 16f, it); text("Galactic Center", it + Offset(20f, 0f), Palette.Red) }
+    p.project(sky.ncp.azimuth, sky.ncp.altitude)?.let { drawCircle(Color.White, 10f, it, style = Stroke(3f)); text("NCP", it + Offset(14f, 0f)) }
+    p.project(sky.scp.azimuth, sky.scp.altitude)?.let { drawCircle(Color.White, 10f, it, style = Stroke(3f)); text("SCP", it + Offset(14f, 0f)) }
+    p.project(sky.polaris.azimuth, sky.polaris.altitude)?.let { drawCircle(Color.White, 6f, it); text("Polaris", it + Offset(10f, 16f), sizePx = 24f) }
+    for (arc in sky.trails) {
         polyline(p, arc, Color(0xAA9FDBFF), 2.5f)
-        val end = arc.last(); val pre = arc[arc.size - 2]
-        val a = p.project(pre.azimuth, pre.altitude); val b = p.project(end.azimuth, end.altitude)
-        if (a != null && b != null) drawCircle(Color(0xFF9FDBFF), 5f, b)
+        arc.lastOrNull()?.let { end -> p.project(end.azimuth, end.altitude)?.let { drawCircle(Color(0xFF9FDBFF), 5f, it) } }
     }
-    // Moon path and position
-    drawBodyPath(p, SkyBody.MOON, where, instant, zone, Palette.Moon)
-    val m = MoonCalc.info(instant, where)
+    drawBodyPath(p, sky.moonPath, sky.moonRiseSet, zone, Palette.Moon)
+    val m = sky.moon
     p.project(m.position.azimuth, m.position.altitude)?.let { drawMoon(m.phaseAngle, m.brightLimbFromZenith, Color.Transparent, it, 24f) }
-    // Meteor shower radiants
-    val active = MeteorShowers.active(instant)
-    for (occ in active) {
-        val selected = occ.shower.code == showerCode
-        val rp = MeteorShowers.radiantPosition(occ, instant, where)
-        p.project(rp.azimuth, rp.altitude)?.let {
-            drawCircle(if (selected) Palette.Accent else Color(0xFFEC407A), if (selected) 16f else 9f, it, style = Stroke(4f))
-            text(occ.shower.name, it + Offset(18f, 0f), if (selected) Palette.Accent else Color(0xFFEC407A), if (selected) 30f else 22f)
-        }
-        if (selected) {
-            val (s, e) = DayEvents.dayWindow(instant.atZone(zone).toLocalDate(), zone)
-            polyline(p, (0..96).map { i -> s.plusSeconds((e.epochSecond - s.epochSecond) * i / 96) }.map { MeteorShowers.radiantPosition(occ, it, where) }, Palette.Accent, 3f, dashed = true)
-        }
+    for ((name, selected, rp) in sky.radiants) p.project(rp.azimuth, rp.altitude)?.let {
+        drawCircle(if (selected) Palette.Accent else Color(0xFFEC407A), if (selected) 16f else 9f, it, style = Stroke(4f))
+        text(name, it + Offset(18f, 0f), if (selected) Palette.Accent else Color(0xFFEC407A), if (selected) 30f else 22f)
     }
+    if (sky.radiantPath.isNotEmpty()) polyline(p, sky.radiantPath, Palette.Accent, 3f, dashed = true)
 }
 
 /** Ground lines at the given distances (device held at [deviceHeight] m). */
@@ -427,8 +450,8 @@ private fun minAbsDeclination(p: Projector, where: GeoPoint, instant: Instant): 
     return pts.map { (x, y) -> NightSky.declinationAt(p.unproject(x, y), instant, where) }.minBy { kotlin.math.abs(it) }
 }
 
-private fun DrawScope.drawSpotStars(p: Projector, where: GeoPoint, instant: Instant, req: ArRequest) {
-    drawNight(p, where, instant, java.time.ZoneId.systemDefault(), null)
+private fun DrawScope.drawSpotStars(p: Projector, sky: ArSky?, where: GeoPoint, instant: Instant, req: ArRequest) {
+    sky?.let { drawNight(p, it, java.time.ZoneId.systemDefault()) }
     val cam = PhotoCapsulesApp.instance.settings.camera()
     val dec = minAbsDeclination(p, where, instant)
     val pitch = cam.pixelPitchUm

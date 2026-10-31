@@ -88,15 +88,18 @@ private fun Opt(text: String, enabled: Boolean = true, onClick: () -> Unit) {
 // ---------------- Find ----------------
 
 @Composable
-fun FindDialog(m: PlannerModel, onDismiss: () -> Unit) {
+fun FindDialog(m: PlannerModel, mapCenter: () -> LatLon?, onPickWithAr: () -> Unit, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val ctx = LocalContext.current
     val g = m.geodetics()
-    var body by remember { mutableIntStateOf(0) }
+    val arTarget = remember { com.photocapsules.data.AppState.findTarget.value.also { com.photocapsules.data.AppState.findTarget.value = null } }
+    var body by remember { mutableIntStateOf(m.findBody) }
     var rangeIdx by remember { mutableIntStateOf(3) }
-    var az by remember { mutableDoubleStateOf(g?.bearing ?: 270.0) }
+    var start by remember { mutableStateOf(m.instant) }
+    var az by remember { mutableDoubleStateOf(arTarget?.azimuth ?: g?.bearing ?: 270.0) }
     var azTol by remember { mutableDoubleStateOf(3.0) }
     var useAlt by remember { mutableStateOf(true) }
-    var alt by remember { mutableDoubleStateOf(g?.elevationAngle ?: 0.0) }
+    var alt by remember { mutableDoubleStateOf(arTarget?.altitude ?: g?.elevationAngle ?: 0.0) }
     var altTol by remember { mutableDoubleStateOf(0.5) }
     var edit by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableFloatStateOf(-1f) }
@@ -109,8 +112,12 @@ fun FindDialog(m: PlannerModel, onDismiss: () -> Unit) {
         title = { Text("Find") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                PillRow(listOf("Sun", "Moon"), body) { body = it }
-                ValueRow("Date range", "from " + Fmt.dateShort(m.instant, m.zone) + ", " + ranges[rangeIdx].first, onClick = { edit = "range" })
+                PillRow(listOf("Sun", "Moon"), body) { body = it; m.findBody = it }
+                ValueRow("Start date", Fmt.date(start, m.zone), onClick = {
+                    val z = start.atZone(m.zone)
+                    DatePickerDialog(ctx, { _, y, mo, d -> start = z.withYear(y).withMonth(mo + 1).withDayOfMonth(d).toLocalDate().atStartOfDay(m.zone).toInstant() }, z.year, z.monthValue - 1, z.dayOfMonth).show()
+                })
+                ValueRow("Date range", ranges[rangeIdx].first + " (to " + Fmt.date(start.plusSeconds(ranges[rangeIdx].second * 86400), m.zone) + ")", onClick = { edit = "range" })
                 ValueRow("Azimuth", String.format(Locale.US, "%.2f° ± %.1f°", az, azTol), onClick = { edit = "az" })
                 ValueRow("Azimuth tolerance", String.format(Locale.US, "± %.1f°", azTol), onClick = { edit = "azTol" })
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -121,7 +128,21 @@ fun FindDialog(m: PlannerModel, onDismiss: () -> Unit) {
                     ValueRow("Elevation", String.format(Locale.US, "%.2f° ± %.2f°", alt, altTol), onClick = { edit = "alt" })
                     ValueRow("Elevation tolerance", String.format(Locale.US, "± %.2f°", altTol), onClick = { edit = "altTol" })
                 }
-                if (g != null) Opt("Use Black Pin (az ${Fmt.deg(g.bearing, 2)}, el ${String.format(Locale.US, "%+.2f°", g.elevationAngle)})") { az = g.bearing; alt = g.elevationAngle; useAlt = true }
+                if (g != null) Opt("Use Black Pin (az ${Fmt.az(g.bearing, 2)}, el ${String.format(Locale.US, "%+.2f°", g.elevationAngle)})") { az = g.bearing; alt = g.elevationAngle; useAlt = true }
+                Opt("Use map centre as target") {
+                    mapCenter()?.let { c ->
+                        val inv = com.photocapsules.core.geo.Geodesy.inverse(m.red, c)
+                        if (inv.distanceMeters > 1.0) {
+                            az = inv.initialBearing
+                            scope.launch {
+                                val h = com.photocapsules.data.OnlineServices.elevation(c.latitude, c.longitude) ?: 0.0
+                                alt = com.photocapsules.core.geo.Terrain.elevationAngle(inv.distanceMeters, m.redAltitude, h); useAlt = true
+                            }
+                        }
+                    }
+                }
+                Opt("Point with AR (camera)") { job?.cancel(); onPickWithAr() }
+                if (arTarget != null) Text("Target set from AR view", color = Palette.Green, fontSize = 12.sp)
                 if (progress >= 0f && results == null) LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(8.dp))
                 results?.let { list ->
                     Text("${list.size} results", color = Palette.TextDim, modifier = Modifier.padding(6.dp))
@@ -142,7 +163,7 @@ fun FindDialog(m: PlannerModel, onDismiss: () -> Unit) {
         confirmButton = {
             TextButton(onClick = {
                 results = null; progress = 0f
-                val q = FindQuery(if (body == 0) SkyBody.SUN else SkyBody.MOON, m.observer, m.instant, m.instant.plusSeconds(ranges[rangeIdx].second * 86400), az, azTol, if (useAlt) alt else null, altTol)
+                val q = FindQuery(if (body == 0) SkyBody.SUN else SkyBody.MOON, m.observer, start, start.plusSeconds(ranges[rangeIdx].second * 86400), az, azTol, if (useAlt) alt else null, altTol)
                 job = scope.launch {
                     val r = withContext(Dispatchers.Default) { FindSearch.search(q, cancelled = { job?.isCancelled == true }) { p -> progress = p.toFloat() } }
                     results = r
@@ -197,7 +218,7 @@ fun LoadDialog(m: PlannerModel, onDismiss: () -> Unit) {
         }
         "poi" -> {
             val pois = repo.load().pois.sortedBy { it.name.lowercase() }
-            ChoiceDialog("Points of Interest", pois, { it.name }, null, { sub = null }) { p -> m.moveRed(LatLon(p.latitude, p.longitude)); p.altitudeM?.let { a -> m.redTerrain = a }; m.centerRequest++; onDismiss() }
+            ChoiceDialog("Points of Interest", pois, { it.name }, null, { sub = null }) { p -> m.moveRed(LatLon(p.latitude, p.longitude)); m.redCustomAltitude = p.altitudeM; m.centerRequest++; onDismiss() }
         }
     }
 }
@@ -298,16 +319,17 @@ fun DateTimeDialog(m: PlannerModel, onDismiss: () -> Unit) {
 @Composable
 fun AltitudesDialog(m: PlannerModel, onDismiss: () -> Unit) {
     var edit by remember { mutableStateOf<String?>(null) }
+    val u = PhotoCapsulesApp.instance.settings.current.units
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Altitudes") },
         text = {
             Column {
-                ValueRow("Red Pin terrain", (m.redCustomAltitude ?: m.redTerrain)?.let { String.format(Locale.US, "%.1f m%s", it, if (m.redCustomAltitude != null) " (custom)" else "") } ?: "unknown", onClick = { edit = "redAlt" })
-                ValueRow("Red Pin offset", String.format(Locale.US, "%.1f m", m.redOffset), onClick = { edit = "redOff" })
+                ValueRow("Red Pin terrain", (m.redCustomAltitude ?: m.redTerrain)?.let { Fmt.len(it, u, 1) + if (m.redCustomAltitude != null) " (custom)" else "" } ?: "unknown", onClick = { edit = "redAlt" })
+                ValueRow("Red Pin offset", Fmt.len(m.redOffset, u, 1), onClick = { edit = "redOff" })
                 if (m.black != null) {
-                    ValueRow("Black Pin terrain", String.format(Locale.US, "%.1f m%s", m.blackGround, if (m.blackCustomAltitude != null) " (custom)" else ""), onClick = { edit = "blackAlt" })
-                    ValueRow("Black Pin offset", String.format(Locale.US, "%.1f m", m.blackOffset), onClick = { edit = "blackOff" })
+                    ValueRow("Black Pin terrain", Fmt.len(m.blackGround, u, 1) + if (m.blackCustomAltitude != null) " (custom)" else "", onClick = { edit = "blackAlt" })
+                    ValueRow("Black Pin offset", Fmt.len(m.blackOffset, u, 1), onClick = { edit = "blackOff" })
                 }
                 Opt("Use automatic terrain altitudes") { m.redCustomAltitude = null; m.blackCustomAltitude = null }
                 Text("Offsets add the height of a building or tripod. Custom altitudes reset when a pin moves more than 30 m.", color = Palette.TextDim, fontSize = 12.sp)
@@ -316,10 +338,11 @@ fun AltitudesDialog(m: PlannerModel, onDismiss: () -> Unit) {
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
     )
     when (edit) {
-        "redAlt" -> NumberDialog("Red Pin altitude", m.redCustomAltitude ?: m.redTerrain ?: 0.0, "m", -500.0, 9000.0, true, { edit = null }) { m.redCustomAltitude = it }
-        "redOff" -> NumberDialog("Red Pin offset", m.redOffset, "m", -1000.0, 10000.0, true, { edit = null }) { m.redOffset = it }
-        "blackAlt" -> NumberDialog("Black Pin altitude", m.blackGround, "m", -500.0, 9000.0, true, { edit = null }) { m.blackCustomAltitude = it }
-        "blackOff" -> NumberDialog("Black Pin offset", m.blackOffset, "m", -1000.0, 10000.0, true, { edit = null }) { m.blackOffset = it }
+        // Ranges keep altitude + offset within the ephemeris engine's valid range (≥ −500 m).
+        "redAlt" -> NumberDialog("Red Pin altitude", Fmt.toDisplay(m.redCustomAltitude ?: m.redTerrain ?: 0.0, u), Fmt.lenUnit(u), Fmt.toDisplay(-430.0, u), Fmt.toDisplay(9000.0, u), true, { edit = null }) { m.redCustomAltitude = Fmt.fromDisplay(it, u) }
+        "redOff" -> NumberDialog("Red Pin offset", Fmt.toDisplay(m.redOffset, u), Fmt.lenUnit(u), Fmt.toDisplay(-50.0, u), Fmt.toDisplay(10000.0, u), true, { edit = null }) { m.redOffset = Fmt.fromDisplay(it, u) }
+        "blackAlt" -> NumberDialog("Black Pin altitude", Fmt.toDisplay(m.blackGround, u), Fmt.lenUnit(u), Fmt.toDisplay(-430.0, u), Fmt.toDisplay(9000.0, u), true, { edit = null }) { m.blackCustomAltitude = Fmt.fromDisplay(it, u) }
+        "blackOff" -> NumberDialog("Black Pin offset", Fmt.toDisplay(m.blackOffset, u), Fmt.lenUnit(u), Fmt.toDisplay(-50.0, u), Fmt.toDisplay(10000.0, u), true, { edit = null }) { m.blackOffset = Fmt.fromDisplay(it, u) }
     }
 }
 
@@ -338,7 +361,7 @@ fun HorizonDialog(m: PlannerModel, onDismiss: () -> Unit) {
                     })
                 }
                 if (m.horizonEnabled) {
-                    ValueRow("Height above horizon", String.format(Locale.US, "%.0f m", m.horizonHeightM))
+                    ValueRow("Height above horizon", Fmt.len(m.horizonHeightM, PhotoCapsulesApp.instance.settings.current.units))
                     ValueRow("Horizon dip", String.format(Locale.US, "%.2f°", com.photocapsules.core.geo.Terrain.apparentHorizonDip(m.horizonHeightM)))
                 }
                 Text("Drag the blue Horizon Pin to where you see the horizon (several km away). Rise/set times and azimuths are corrected for the dip of the horizon.", color = Palette.TextDim, fontSize = 12.sp)
@@ -414,8 +437,11 @@ fun ToolSettingsDialog(m: PlannerModel, onDismiss: () -> Unit) {
                     ValueRow("Desired Sun/Moon size", Fmt.dist(m.sunMoonSizeM, units), onClick = { edit = "smsize" })
                     Text("The grey circle around the Black Pin (or Red Pin) shows the shooting distance that gives that size.", color = Palette.TextDim, fontSize = 12.sp)
                 } else {
-                    ValueRow("Focal length", String.format(Locale.US, "%.0f mm (35 mm eq. %.0f)", m.focalMm, m.focalMm * cam.cropFactor), onClick = { edit = "focal" })
-                    if (m.tool == MapTool.DOF) ValueRow("Aperture", com.photocapsules.core.photo.Format.aperture(m.aperture), onClick = { edit = "aperture" })
+                    ValueRow("Focal length", String.format(Locale.US, "%.0f mm (35 mm eq. %.0f)", m.focalMm, m.focalMm * cam.cropFactor * m.teleconverter), onClick = { edit = "focal" })
+                    ValueRow("Focal length as 35 mm equivalent", String.format(Locale.US, "%.0f mm", m.focalMm * cam.cropFactor), onClick = { edit = "focal35" })
+                    ValueRow("Teleconverter", if (m.teleconverter == 1.0) "None" else "×" + m.teleconverter, onClick = { edit = "tc" })
+                    Check("Lock focal length (map handles only rotate)", m.focalLocked) { m.focalLocked = it }
+                    if (m.tool == MapTool.DOF) ValueRow("Aperture", com.photocapsules.core.photo.Format.aperture(m.aperture) + if (m.teleconverter != 1.0) " (effective " + com.photocapsules.core.photo.Format.aperture(m.aperture * m.teleconverter) + ")" else "", onClick = { edit = "aperture" })
                     if (m.mode == PlannerMode.CAMERA) {
                         ValueRow("Focus distance", if (m.focusAtBlackPin) "At Black Pin" else Fmt.dist(m.focusM, units), onClick = { edit = "focus" })
                         if (m.black != null) Check("Focus at Black Pin", m.focusAtBlackPin) { m.focusAtBlackPin = it }
@@ -434,6 +460,11 @@ fun ToolSettingsDialog(m: PlannerModel, onDismiss: () -> Unit) {
     )
     when (edit) {
         "focal" -> NumberDialog("Focal length (real)", m.focalMm, "mm", 1.0, 5000.0, false, { edit = null }) { m.focalMm = it }
+        "focal35" -> {
+            val crop = PhotoCapsulesApp.instance.settings.camera().cropFactor
+            NumberDialog("35 mm equivalent focal length", m.focalMm * crop, "mm", 1.0, 20000.0, false, { edit = null }) { m.focalMm = it / crop }
+        }
+        "tc" -> ChoiceDialog("Teleconverter", listOf(1.0, 1.4, 1.7, 2.0), { if (it == 1.0) "None" else "×$it" }, m.teleconverter, { edit = null }) { m.teleconverter = it }
         "aperture" -> NumberDialog("Aperture", m.aperture, "f/", 0.5, 128.0, false, { edit = null }) { m.aperture = it }
         "focus" -> NumberDialog("Focus distance", Fmt.toDisplay(m.focusM, units), Fmt.lenUnit(units), 0.05, 1e6, false, { edit = null }) { m.focusM = Fmt.fromDisplay(it, units); m.focusAtBlackPin = false }
         "az" -> NumberDialog("Azimuth", m.toolAzimuth, "°", 0.0, 360.0, false, { edit = null }) { m.toolAzimuth = it; m.azimuthAtBlackPin = false }
@@ -447,16 +478,18 @@ fun ToolSettingsDialog(m: PlannerModel, onDismiss: () -> Unit) {
 
 @Composable
 fun EclipsePickerDialog(m: PlannerModel, onDismiss: () -> Unit) {
-    val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
-    val from = Instant.now().minusSeconds(365L * 86400)
-    val lunar = remember { Eclipses.lunarEclipses(from, 16) }
-    val solar = remember { Eclipses.solarEclipses(from, 16) }
-    val all: List<Pair<Instant, Any>> = remember { (lunar.map { it.peak to it as Any } + solar.map { it.peak to it as Any }).sortedBy { it.first } }
+    val all by androidx.compose.runtime.produceState<List<Pair<Instant, Any>>>(emptyList()) {
+        value = withContext(Dispatchers.Default) {
+            val from = Instant.now().minusSeconds(365L * 86400)
+            (Eclipses.lunarEclipses(from, 16).map { it.peak to it as Any } + Eclipses.solarEclipses(from, 16).map { it.peak to it as Any }).sortedBy { it.first }
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Eclipses") },
         text = {
+            if (all.isEmpty()) Text("Loading eclipses…", color = Palette.TextDim)
             LazyColumn(Modifier.height(420.dp)) {
                 items(all) { (t, e) ->
                     val label = when (e) { is LunarEclipse -> e.name + String.format(Locale.US, " (umbral %.2f)", e.umbralMagnitude); is SolarEclipse -> e.name; else -> "" }
@@ -467,7 +500,11 @@ fun EclipsePickerDialog(m: PlannerModel, onDismiss: () -> Unit) {
                             is SolarEclipse -> {
                                 m.solarEclipse = e; m.lunarEclipse = null
                                 Toast.makeText(ctx, "Computing eclipse path…", Toast.LENGTH_SHORT).show()
-                                scope.launch { m.solarMap = withContext(Dispatchers.Default) { SolarEclipseMap.forEclipse(e).compute(e) } }
+                                // App-lifetime scope: the dialog is dismissed right away, its own scope would cancel the work.
+                                PhotoCapsulesApp.instance.appScope.launch {
+                                    val data = withContext(Dispatchers.Default) { SolarEclipseMap.forEclipse(e).compute(e) }
+                                    if (m.solarEclipse == e) m.solarMap = data
+                                }
                             }
                         }
                         m.eclipseLayer = true; m.instant = t; onDismiss()

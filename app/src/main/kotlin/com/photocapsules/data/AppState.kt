@@ -34,6 +34,10 @@ object AppState {
     var ar: ArRequest? = null
     /** Plan to open in the Planner (set by My Stuff → Plans). */
     val pendingPlanId = MutableStateFlow<String?>(null)
+    /** Location + time to open in the Planner (from the Sun / Moon / Meteor pills). */
+    val pendingPlannerContext = MutableStateFlow<SkyContext?>(null)
+    /** Target direction picked in the AR view for the Planner's Find tool. */
+    val findTarget = MutableStateFlow<com.photocapsules.core.astro.HorizontalCoord?>(null)
     /** Location to open in the Planner (from a POI). */
     val pendingPlannerLocation = MutableStateFlow<GeoPoint?>(null)
     /** Calculator hand-offs ("To DoF", "To FoV"). */

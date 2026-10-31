@@ -4,5 +4,6 @@
     <string name="widget_sun">Sun &amp; light</string>
     <string name="widget_moon">Moon</string>
     <string name="widget_mw">Milky Way</string>
+    <string name="widget_combined">Sun, Moon &amp; Milky Way</string>
     <string name="widget_plans">Upcoming plans</string>
 </resources>

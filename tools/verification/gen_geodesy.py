@@ -17,4 +17,10 @@ for _ in range(40):
     lat=random.uniform(-80,80); lon=random.uniform(-180,180); az=random.uniform(0,360); s=random.choice([10,1000,50000,500000,5e6])
     r=g.Direct(lat,lon,az,s)
     direct.append({"lat1":lat,"lon1":lon,"azi1":az,"s12":s,"lat2":r["lat2"],"lon2":r["lon2"]})
-json.dump({"source":"geographiclib %s WGS84"%__import__('geographiclib').__version__,"inverse":cases,"direct":direct}, open(sys.argv[1],"w"), indent=1)
+anti = []
+for _ in range(30):
+    lat=random.uniform(-60,60); lon=random.uniform(-180,180)
+    lat2=-lat+random.uniform(-0.8,0.8); lon2=((lon+180+random.uniform(-0.8,0.8)+180)%360)-180
+    r=g.Inverse(lat,lon,lat2,lon2)
+    anti.append({"lat1":lat,"lon1":lon,"lat2":lat2,"lon2":lon2,"s12":r["s12"],"azi1":r["azi1"]%360,"azi2":r["azi2"]%360})
+json.dump({"source":"geographiclib %s WGS84"%__import__('geographiclib').__version__,"inverse":cases,"direct":direct,"antipodal":anti}, open(sys.argv[1],"w"), indent=1)

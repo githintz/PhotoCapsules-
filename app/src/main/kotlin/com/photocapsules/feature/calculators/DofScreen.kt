@@ -62,8 +62,9 @@ fun DofScreen(onBack: () -> Unit, go: (String) -> Unit) {
             "AR" to {
                 val r = holder[0]
                 if (r != null) {
+                    val focus = if (tab == 1) inverseFocus else s
                     AppState.ar = ArRequest(AppState.sky.value, focalMm = f, aperture = n, distancesM = listOfNotNull(
-                        "Near" to r.nearLimitM, "Focus" to s, if (r.farLimitM.isFinite()) "Far" to r.farLimitM else null, "Hyperfocal" to r.hyperfocalM,
+                        "Near" to r.nearLimitM, "Focus" to focus, if (r.farLimitM.isFinite()) "Far" to r.farLimitM else null, "Hyperfocal" to r.hyperfocalM,
                     ))
                     go(Routes.ar(ArMode.DOF))
                 }
@@ -84,7 +85,7 @@ fun DofScreen(onBack: () -> Unit, go: (String) -> Unit) {
                     }
                     holder[0] = DofResults(camera, camera.circleOfConfusionMm, f, n, s, tc, units)
                 }
-                1 -> InverseDof(units, tc)
+                1 -> { holder[0] = InverseDof(units, tc) }
                 else -> {
                     lateinit var camera: Camera
                     var pw by rememberPersisted("dof_pw", CircleOfConfusion.DEFAULT_PRINT_WIDTH_M)
@@ -171,7 +172,7 @@ fun DofDiagram(r: DofResult, focus: Double) {
 }
 
 @Composable
-private fun InverseDof(units: UnitSystem, tcInit: Double) {
+private fun InverseDof(units: UnitSystem, tcInit: Double): DofResult? {
     var solve by rememberPersisted("idof_solve", 0.0) // 0 distance, 1 aperture, 2 focal
     var f by rememberPersisted("idof_f", 50.0)
     var n by rememberPersisted("idof_n", 8.0)
@@ -198,7 +199,7 @@ private fun InverseDof(units: UnitSystem, tcInit: Double) {
     if (solved == null) {
         Card { ValueRow("No solution for these settings", "—") }
         InfoText("The desired depth of field cannot be reached by changing only the selected setting.")
-        return
+        return null
     }
     Card {
         when (solve.toInt()) {
@@ -216,4 +217,9 @@ private fun InverseDof(units: UnitSystem, tcInit: Double) {
         ValueRow("In front / behind", Fmt.dist(r.inFrontM, units) + " / " + Fmt.dist(r.behindM, units))
     }
     DofDiagram(r, solved.third)
+    inverseFocus = solved.third
+    return r
 }
+
+/** Focus distance of the last inverse solution (for the AR hand-off). */
+private var inverseFocus = 0.0

@@ -28,6 +28,8 @@ data class Settings(
     val showMyLocation: Boolean = true,
     val onlineElevation: Boolean = true,
     val use24h: Boolean = true,
+    /** Supermoon definition: 0 = 90 % of perigee (Nolle/timeanddate), otherwise a fixed distance in km. */
+    val supermoonKm: Double = 0.0,
 )
 
 /** SharedPreferences-backed settings exposed as a StateFlow. */
@@ -54,6 +56,7 @@ class SettingsStore(context: Context) {
         showMyLocation = prefs.getBoolean("myLoc", true),
         onlineElevation = prefs.getBoolean("onlineElev", true),
         use24h = prefs.getBoolean("use24h", true),
+        supermoonKm = prefs.getFloat("supermoonKm", 0f).toDouble(),
     )
 
     fun update(transform: (Settings) -> Settings) {
@@ -65,8 +68,19 @@ class SettingsStore(context: Context) {
             .putFloat("deviceHeight", s.deviceHeightM.toFloat()).putBoolean("gyro", s.useGyroscope)
             .putBoolean("compassWarn", s.showCompassWarning).putBoolean("myLoc", s.showMyLocation)
             .putBoolean("onlineElev", s.onlineElevation).putBoolean("use24h", s.use24h)
+            .putFloat("supermoonKm", s.supermoonKm.toFloat())
             .apply()
         _state.value = s
+        applyGlobals()
+    }
+
+    /** Pushes settings that core modules / formatters read globally. */
+    fun applyGlobals() {
+        val s = current
+        com.photocapsules.core.astro.MoonCalendar.supermoonRule =
+            if (s.supermoonKm > 0) com.photocapsules.core.astro.SupermoonRule.Distance(s.supermoonKm) else com.photocapsules.core.astro.SupermoonRule.NinetyPercentOfPerigee
+        com.photocapsules.ui.components.Fmt.use24h = s.use24h
+        com.photocapsules.ui.components.Fmt.magneticAzimuths = s.azimuthReference == AzimuthReference.MAGNETIC_NORTH
     }
 
     /** All cameras: bundled database + the user's custom camera. */

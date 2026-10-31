@@ -80,10 +80,12 @@ import java.util.Locale
 fun MoonScreen(onBack: () -> Unit, go: (String) -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     LiveClock()
+    val shareCtx = androidx.compose.ui.platform.LocalContext.current
     AppScreen("Moon", onBack, bottomBar = {
         BottomActions(
             "AR" to { AppState.ar = ArRequest(AppState.sky.value); go(Routes.ar(ArMode.SUN_MOON)) },
-            "Planner" to { go(Routes.PLANNER) },
+            "Planner" to { AppState.pendingPlannerContext.value = AppState.sky.value; go(Routes.PLANNER) },
+            "Share" to { com.photocapsules.feature.common.shareText(shareCtx, "Moon information", com.photocapsules.feature.common.daySummary(AppState.sky.value, "Moon information")) },
         )
     }) { p ->
         ScrollColumn(p) {
@@ -144,8 +146,8 @@ private fun MoonInfo() {
     }
     SectionTitle("Position")
     SimpleTable(listOf("", "Azimuth", "Elevation"), listOf(
-        listOf("Moon", Fmt.deg(info.position.azimuth, 2), Fmt.deg(info.position.altitude, 2)),
-        listOf("Sun", Fmt.deg(sun.azimuth, 2), Fmt.deg(sun.altitude, 2)),
+        listOf("Moon", Fmt.az(info.position.azimuth, 2), Fmt.deg(info.position.altitude, 2)),
+        listOf("Sun", Fmt.az(sun.azimuth, 2), Fmt.deg(sun.altitude, 2)),
     ))
     InfoText("Light: " + DayEvents.lightType(ctx.instant, ctx.point).label)
     SectionTitle("Events")
@@ -218,7 +220,7 @@ private fun MoonMonth() {
     }
     SectionTitle("Phases this month")
     Card { data?.second?.forEach { ph -> ValueRow(ph.phase.label + if (ph.isSupermoon) " (Supermoon)" else "", Fmt.dateTime(ph.time, zone), onClick = { setSkyTime(ph.time) }) } }
-    InfoText("Yellow circle: Supermoon (full Moon closer than 360,000 km). Blue circle: today.")
+    InfoText("Yellow circle: Supermoon (definition in Settings). Blue circle: today.")
 }
 
 @Composable

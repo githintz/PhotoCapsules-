@@ -28,6 +28,14 @@ class DataTest {
         assertEquals(1, s.pois.size); assertEquals(40.75, s.pois[0].latitude)
     }
 
+    @Test fun invalidXmlCharactersAndZeroAltitudeSurviveRoundTrip() {
+        val s = LibraryState(pois = listOf(PointOfInterest("z", "Bad\u0001name\uFFFE ok", 10.0, 20.0, 0.0), PointOfInterest("n", "No alt", 1.0, 2.0, null)))
+        val back = Kml.parse(Kml.toKmz(s))
+        assertEquals("Badname ok", back.pois[0].name)
+        assertEquals(0.0, back.pois[0].altitudeM)
+        assertEquals(null, back.pois[1].altitudeM)
+    }
+
     @Test fun xxeIsRejected() {
         val evil = """<?xml version="1.0"?><!DOCTYPE kml [<!ENTITY x SYSTEM "file:///etc/passwd">]><kml><Document><Placemark><name>&x;</name><Point><coordinates>0,0</coordinates></Point></Placemark></Document></kml>"""
         val r = runCatching { Kml.parse(evil.toByteArray()) }

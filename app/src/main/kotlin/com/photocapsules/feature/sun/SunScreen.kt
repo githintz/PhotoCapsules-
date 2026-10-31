@@ -70,10 +70,12 @@ import java.util.Locale
 fun SunScreen(onBack: () -> Unit, go: (String) -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     LiveClock()
+    val shareCtx = androidx.compose.ui.platform.LocalContext.current
     AppScreen("Sun", onBack, bottomBar = {
         BottomActions(
             "AR" to { AppState.ar = ArRequest(AppState.sky.value); go(Routes.ar(ArMode.SUN_MOON)) },
-            "Planner" to { go(Routes.PLANNER) },
+            "Planner" to { AppState.pendingPlannerContext.value = AppState.sky.value; go(Routes.PLANNER) },
+            "Share" to { com.photocapsules.feature.common.shareText(shareCtx, "Sun information", com.photocapsules.feature.common.daySummary(AppState.sky.value, "Sun information")) },
         )
     }) { p ->
         ScrollColumn(p) {
@@ -136,7 +138,7 @@ private fun SunInfo() {
         if (pos.altitude > -0.833) ValueRow("Time to set", nextSet?.let { Format.duration((it.time.epochSecond - ctx.instant.epochSecond).toDouble(), false) } ?: "—")
         else ValueRow("Time to rise", nextRise?.let { Format.duration((it.time.epochSecond - ctx.instant.epochSecond).toDouble(), false) } ?: "—")
         ValueRow("Daylight", d?.let { Format.duration(it.daylightSeconds, false) } ?: "—")
-        ValueRow("Azimuth", Fmt.deg(pos.azimuth, 2))
+        ValueRow("Azimuth", Fmt.az(pos.azimuth, 2))
         ValueRow("Elevation", Fmt.deg(pos.altitude, 2))
         ValueRow("Angular diameter", String.format(Locale.US, "%.4f°", pos.angularDiameterDeg))
         ValueRow("Distance", Fmt.km(pos.distanceKm, units))
@@ -158,7 +160,7 @@ fun EventRow(e: DayEvent, zone: ZoneId) {
     Row(Modifier.fillMaxWidth().clickable { setSkyTime(e.time) }.padding(horizontal = 14.dp, vertical = 7.dp)) {
         Text(Fmt.time(e.time, zone), color = color, modifier = Modifier.width(72.dp))
         Text(e.kind.label, color = Palette.Text, modifier = Modifier.weight(1f))
-        e.azimuth?.let { Text(Fmt.deg(it), color = Palette.TextDim) }
+        e.azimuth?.let { Text(Fmt.az(it), color = Palette.TextDim) }
     }
 }
 

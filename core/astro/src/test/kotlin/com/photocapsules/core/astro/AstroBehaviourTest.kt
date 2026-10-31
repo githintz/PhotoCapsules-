@@ -84,11 +84,56 @@ class AstroBehaviourTest {
     }
 
     @Test fun supermoons2026() {
+        // Nolle 90 %-of-perigee rule: EarthSky / AccuWeather list 3 Jan, 24 Nov and 24 Dec 2026.
         val list = MoonCalendar.supermoons(Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z"))
-        // 2026 supermoons (Earth–Moon < 360,000 km): 3 Jan and 24 Dec (+ late-year full moons near perigee).
         val dates = list.map { it.time.toString().substring(0, 10) }
-        assertTrue("2026-12-24" in dates, "$dates")
-        assertTrue(list.all { it.distanceKm < MoonCalendar.SUPERMOON_KM })
+        assertEquals(listOf("2026-01-03", "2026-11-24", "2026-12-24"), dates)
+        // Fixed 360,000 km rule only keeps 24 Dec.
+        val fixed = MoonCalendar.phases(Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z"))
+            .filter { it.phase == PrincipalPhase.FULL && MoonCalendar.isSupermoon(it.time, it.distanceKm, SupermoonRule.Distance(360_000.0)) }
+        assertEquals(listOf("2026-12-24"), fixed.map { it.time.toString().substring(0, 10) })
+    }
+
+    @Test fun moonBrightLimbPointsTowardsTheSunOnScreen() {
+        // The lit limb must point along the great circle from the Moon to the Sun, measured clockwise from the zenith
+        // on the observer's view (azimuth increases to the right when facing the Moon).
+        for ((t, where) in listOf(
+            Instant.parse("2026-01-21T18:00:00Z") to madrid,
+            Instant.parse("2026-03-01T03:00:00Z") to GeoPoint(-33.87, 151.21),
+            Instant.parse("2026-10-30T06:00:00Z") to GeoPoint(64.1, -21.9),
+            Instant.parse("2026-07-20T20:00:00Z") to GeoPoint(0.0, 0.0),
+        )) {
+            val m = MoonCalc.info(t, where)
+            val s = Sky.position(SkyBody.SUN, t, where)
+            val a1 = Math.toRadians(m.position.trueAltitude); val a2 = Math.toRadians(s.trueAltitude)
+            val dAz = Math.toRadians(s.azimuth - m.position.azimuth)
+            val expected = normalizeDegrees(Math.toDegrees(kotlin.math.atan2(kotlin.math.sin(dAz) * kotlin.math.cos(a2),
+                kotlin.math.cos(a1) * kotlin.math.sin(a2) - kotlin.math.sin(a1) * kotlin.math.cos(a2) * kotlin.math.cos(dAz))))
+            assertTrue(abs(angleDiff(m.brightLimbFromZenith, expected)) < 1.0, "$t $where expected $expected got ${m.brightLimbFromZenith}")
+        }
+    }
+
+    @Test fun belowSeaLevelObserverDoesNotCrash() {
+        val deadSea = GeoPoint(31.5, 35.5, -430.0)
+        assertNotNull(DayEvents.sun(LocalDate.of(2026, 6, 1), ZoneId.of("Asia/Jerusalem"), deadSea).sunrise)
+        // Absurd altitudes (bad import / offsets) are clamped, not fatal.
+        assertNotNull(DayEvents.sun(LocalDate.of(2026, 6, 1), ZoneOffset.UTC, GeoPoint(40.0, -3.0, -2000.0)).sunrise)
+        assertNotNull(DayEvents.moon(LocalDate.of(2026, 6, 1), ZoneOffset.UTC, GeoPoint(40.0, -3.0, -2000.0)))
+    }
+
+    @Test fun riseSetIndependentOfGroundElevation() {
+        // USNO/PhotoPills convention: fixed 34′ refraction regardless of the observer's ground altitude.
+        val low = DayEvents.sun(LocalDate.of(2026, 6, 1), ZoneOffset.UTC, GeoPoint(-0.18, -78.47, 0.0)).sunrise!!.time
+        val high = DayEvents.sun(LocalDate.of(2026, 6, 1), ZoneOffset.UTC, GeoPoint(-0.18, -78.47, 2850.0)).sunrise!!.time
+        assertTrue(minutesBetween(low, high) < 0.05, "${minutesBetween(low, high)}")
+    }
+
+    @Test fun comaeBerenicidsIncludesDlmRegion() {
+        assertNull(MeteorShowers.byCode("DLM"))
+        val com = MeteorShowers.occurrence(MeteorShowers.byCode("COM")!!, 2026)
+        assertEquals(LocalDate.of(2027, 2, 4), com.activityEnd)
+        // Flat profile: same ZHR on 5 Jan as at the nominal maximum
+        assertEquals(3.0, MeteorShowers.zhrAt(com, Instant.parse("2027-01-05T00:00:00Z")), 1e-9)
     }
 
     @Test fun galacticCenterVisibility() {

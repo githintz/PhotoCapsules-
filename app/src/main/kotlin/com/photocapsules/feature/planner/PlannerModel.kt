@@ -21,7 +21,7 @@ import java.time.ZoneId
 enum class BodyLayerStyle(val label: String) { OFF("Off"), STANDARD("Standard"), PATH("Path"), LIGHT("Light direction") }
 enum class MapTool(val label: String) { NONE("None"), FOV("Field of view"), DOF("Depth of field"), SUN_MOON("Sun/Moon size") }
 enum class PlannerMode { CAMERA, DRONE }
-enum class CompositionGrid(val label: String) { NONE("None"), THIRDS("Rule of thirds"), GOLDEN("Golden ratio"), DIAGONAL("Diagonals"), TRIANGLE("Golden triangle"), CROSSHAIR("Crosshair") }
+enum class CompositionGrid(val label: String) { NONE("None"), THIRDS("Rule of thirds"), GOLDEN("Golden ratio"), DIAGONAL("Diagonals"), TRIANGLE("Golden triangle"), CROSSHAIR("Crosshair"), SPIRAL("Golden spiral") }
 
 /** Observable Planner state (single source of truth for map, panels and dialogs). */
 class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
@@ -73,6 +73,9 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
     var droneGrid by mutableStateOf(CompositionGrid.THIRDS)
 
     var objectHeightM by mutableDoubleStateOf(10.0)
+    var findBody by mutableIntStateOf(0)
+    var focalLocked by mutableStateOf(false)
+    var teleconverter by mutableDoubleStateOf(1.0)
     var expanded by mutableStateOf(false)
     var compassRotate by mutableStateOf(false)
     var movePinMode by mutableStateOf(false)
@@ -143,9 +146,10 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
 
     fun load(plan: Plan) {
         moveRed(LatLon(plan.redPin.latitude, plan.redPin.longitude))
-        redTerrain = plan.redPin.altitudeM; redOffset = plan.redPin.offsetM
+        // Saved altitudes are kept as custom altitudes so the online terrain lookup does not overwrite them.
+        redTerrain = null; redCustomAltitude = plan.redPin.altitudeM; redOffset = plan.redPin.offsetM
         black = plan.blackPin?.let { LatLon(it.latitude, it.longitude) }
-        blackTerrain = plan.blackPin?.altitudeM; blackOffset = plan.blackPin?.offsetM ?: 0.0
+        blackTerrain = null; blackCustomAltitude = plan.blackPin?.altitudeM; blackOffset = plan.blackPin?.offsetM ?: 0.0
         instant = Instant.ofEpochMilli(plan.epochMillis)
         zone = runCatching { ZoneId.of(plan.zoneId) }.getOrDefault(zone); zoneAuto = false
         centerRequest++

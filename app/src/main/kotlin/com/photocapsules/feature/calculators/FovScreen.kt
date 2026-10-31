@@ -48,13 +48,16 @@ fun FovScreen(onBack: () -> Unit, go: (String) -> Unit) {
     AppState.handoffDistance?.let { s = it; AppState.handoffDistance = null }
     val orientation = if (o == 0.0) Orientation.LANDSCAPE else Orientation.PORTRAIT
     var result: FovResult? = null
+    val shown = androidx.compose.runtime.remember { arrayOfNulls<FovResult>(1) }
 
     AppScreen("Field of view", onBack, bottomBar = {
         BottomActions(
             "To DoF" to { AppState.handoffFocal = f; AppState.handoffDistance = s; go(Routes.DOF) },
             "AR" to {
-                val r = FieldOfView.compute(PhotoCapsulesCamera.current(), f, s, orientation, tc)
-                AppState.ar = ArRequest(AppState.sky.value, focalMm = f, frameHAngleDeg = r.horizontalAngleDeg, frameVAngleDeg = r.verticalAngleDeg)
+                // Use exactly the result on screen (Classic or Inverse tab, teleconverter included).
+                val r = shown[0] ?: FieldOfView.compute(PhotoCapsulesCamera.current(), f, s, orientation, tc)
+                val focal35 = FieldOfView.focalForAngle(PhotoCapsulesCamera.current(), orientation, com.photocapsules.core.photo.FovDimension.HORIZONTAL, r.horizontalAngleDeg)
+                AppState.ar = ArRequest(AppState.sky.value, focalMm = focal35, frameHAngleDeg = r.horizontalAngleDeg, frameVAngleDeg = r.verticalAngleDeg)
                 go(Routes.ar(ArMode.FOV))
             },
         )
@@ -98,6 +101,7 @@ fun FovScreen(onBack: () -> Unit, go: (String) -> Unit) {
                     result = FieldOfView.compute(camera, f, ds, orientation)
                 }
             }
+            shown[0] = result
             result?.let { r ->
                 Card {
                     ValueRow("Horizontal angle of view", Fmt.deg(r.horizontalAngleDeg, 2))

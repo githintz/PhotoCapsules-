@@ -10,6 +10,9 @@ import org.osmdroid.config.Configuration
 import java.io.File
 
 class PhotoCapsulesApp : Application() {
+    /** Scope for work that must outlive a screen or dialog (network lookups, eclipse paths). */
+    val appScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)
+
     lateinit var settings: SettingsStore
         private set
     lateinit var library: LibraryRepository
@@ -19,6 +22,7 @@ class PhotoCapsulesApp : Application() {
         super.onCreate()
         instance = this
         settings = SettingsStore(this)
+        settings.applyGlobals()
         library = JsonFileLibraryRepository(File(filesDir, "library.json"))
         // osmdroid: identify the app to tile servers (OSM tile usage policy) and keep the cache in app storage.
         Configuration.getInstance().apply {

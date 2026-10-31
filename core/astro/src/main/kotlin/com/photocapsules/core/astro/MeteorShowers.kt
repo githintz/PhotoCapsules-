@@ -84,9 +84,9 @@ object MeteorShowers {
         MeteorShower("MON", "Monocerotids", md(11, 27), md(12, 17), 257.0, 100.0, 8.0, 41.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8),
         MeteorShower("HYD", "σ-Hydrids", md(12, 3), md(12, 20), 257.0, 125.0, 2.0, 58.0, 3.0, 7.0, showerClass = 2, driftRa = 0.7, driftDec = -0.2),
         MeteorShower("GEM", "Geminids", md(12, 4), md(12, 20), 262.2, 112.0, 33.0, 35.0, 2.6, 150.0, showerClass = 1, driftRa = 1.0, driftDec = -0.1, profileB = 0.39),
-        MeteorShower("DLM", "December Leonis Minorids", md(12, 5), md(2, 4), 269.0, 161.0, 30.0, 63.0, 3.0, 5.0, showerClass = 4, driftRa = 0.8, driftDec = -0.4, profileB = 0.05),
         MeteorShower("URS", "Ursids", md(12, 17), md(12, 26), 270.7, 217.0, 76.0, 27.0, 2.9, 10.0, showerClass = 1, profileB = 0.9),
-        MeteorShower("COM", "Comae Berenicids", md(12, 4), md(1, 30), 271.0, 164.0, 29.0, 65.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8, driftDec = -0.2),
+        // IMO 2026: "summarise all meteors from the (extended) COM/DLM-region under COM" – no significant activity variation.
+        MeteorShower("COM", "Comae Berenicids (incl. Dec. Leonis Minorids)", md(12, 4), md(2, 4), 271.0, 164.0, 29.0, 65.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8, driftDec = -0.2, profileB = 0.0),
     )
 
     fun byCode(code: String) = all.firstOrNull { it.code == code }

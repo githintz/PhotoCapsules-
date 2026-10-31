@@ -68,6 +68,10 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_sun_info" />
         </receiver>
+        <receiver android:name=".widget.CombinedWidget" android:exported="false" android:label="@string/widget_combined">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_combined_info" />
+        </receiver>
         <receiver android:name=".widget.MoonWidget" android:exported="false" android:label="@string/widget_moon">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_moon_info" />

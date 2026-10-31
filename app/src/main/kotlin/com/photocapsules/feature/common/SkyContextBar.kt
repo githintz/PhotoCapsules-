@@ -53,6 +53,7 @@ fun SkyContextBar() {
     val ctx by AppState.sky.collectAsState()
     var dialog by remember { mutableStateOf(false) }
     val fmt = PhotoCapsulesApp.instance.settings.current.coordinateFormat
+    androidx.compose.runtime.LaunchedEffect(ctx.point) { Fmt.setLocation(ctx.point.latitude, ctx.point.longitude, ctx.point.elevationM) }
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { shift(ctx, -86400) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous day", tint = Palette.Accent) }
@@ -77,7 +78,8 @@ fun setSkyTime(instant: Instant) { AppState.sky.value = AppState.sky.value.copy(
 @Composable
 fun SkyContextDialog(ctx: SkyContext, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    // App-lifetime scope: these lookups finish after the dialog has been dismissed.
+    val scope = PhotoCapsulesApp.instance.appScope
     var searching by remember { mutableStateOf(false) }
     var coords by remember { mutableStateOf(false) }
     var zones by remember { mutableStateOf(false) }
@@ -118,23 +120,22 @@ fun SkyContextDialog(ctx: SkyContext, onDismiss: () -> Unit) {
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
-    if (searching) PlaceSearchDialog({ searching = false }) { r ->
-        scope.launch {
-            val tz = OnlineServices.timeZone(r.latitude, r.longitude)?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ctx.zone
-            val elev = OnlineServices.elevation(r.latitude, r.longitude) ?: 0.0
-            AppState.sky.value = ctx.copy(point = GeoPoint(r.latitude, r.longitude, elev), label = r.name.substringBefore(','), zone = tz, live = false)
-        }
-        onDismiss()
-    }
-    if (coords) CoordinateDialog({ coords = false }) { lat, lon ->
-        scope.launch {
-            val tz = OnlineServices.timeZone(lat, lon)?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ctx.zone
-            val elev = OnlineServices.elevation(lat, lon) ?: 0.0
-            AppState.sky.value = ctx.copy(point = GeoPoint(lat, lon, elev), label = "Custom location", zone = tz, live = false)
-        }
-        onDismiss()
-    }
+    if (searching) PlaceSearchDialog({ searching = false }) { r -> setLocation(scope, ctx, r.latitude, r.longitude, r.name.substringBefore(',')); onDismiss() }
+    if (coords) CoordinateDialog({ coords = false }) { lat, lon -> setLocation(scope, ctx, lat, lon, "Custom location"); onDismiss() }
     if (zones) ZonePickerDialog(ctx.zone, { zones = false }) { z -> AppState.sky.value = ctx.copy(zone = z, live = false); onDismiss() }
+}
+
+/** Applies a new location immediately, then refines time zone and elevation when the lookups return. */
+private fun setLocation(scope: kotlinx.coroutines.CoroutineScope, ctx: SkyContext, lat: Double, lon: Double, label: String) {
+    val point = GeoPoint(lat, lon, 0.0)
+    AppState.sky.value = AppState.sky.value.copy(point = point, label = label, live = false)
+    scope.launch {
+        val tz = OnlineServices.timeZone(lat, lon)?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+        val elev = OnlineServices.elevation(lat, lon)
+        val cur = AppState.sky.value
+        if (cur.point.latitude == lat && cur.point.longitude == lon)
+            AppState.sky.value = cur.copy(point = GeoPoint(lat, lon, elev ?: 0.0), zone = tz ?: cur.zone)
+    }
 }
 
 @Composable

@@ -17,6 +17,23 @@ object Fmt {
     private val dateTime = DateTimeFormatter.ofPattern("d MMM yyyy HH:mm", Locale.US)
 
     var use24h = true
+    /** Show azimuths relative to magnetic north (Settings → Azimuth reference). */
+    @Volatile var magneticAzimuths = false
+    /** Magnetic declination at the location currently on screen (set by screens; east positive). */
+    @Volatile var declination = 0.0
+
+    /** Sets [declination] for a location (World Magnetic Model). */
+    fun setLocation(lat: Double, lon: Double, altitudeM: Double = 0.0) {
+        declination = runCatching { com.photocapsules.data.LocationService.magneticDeclination(lat, lon, altitudeM, System.currentTimeMillis()) }.getOrDefault(0.0)
+    }
+
+    /** Azimuth for display: true north, or magnetic (suffix "M") per settings. */
+    fun az(trueAz: Double?, decimals: Int = 1): String {
+        if (trueAz == null) return "—"
+        if (!magneticAzimuths) return String.format(Locale.US, "%.${decimals}f°", trueAz)
+        var m = (trueAz - declination) % 360.0; if (m < 0) m += 360.0
+        return String.format(Locale.US, "%.${decimals}f°M", m)
+    }
 
     fun time(i: Instant?, zone: ZoneId): String = i?.atZone(zone)?.format(if (use24h) t24 else t12) ?: "—"
     fun timeSec(i: Instant?, zone: ZoneId): String = i?.atZone(zone)?.format(tSec) ?: "—"
@@ -24,7 +41,7 @@ object Fmt {
     fun dateShort(i: Instant, zone: ZoneId): String = i.atZone(zone).format(dateShort)
     fun dateTime(i: Instant, zone: ZoneId): String = i.atZone(zone).format(dateTime)
     fun deg(d: Double?, decimals: Int = 1): String = d?.let { String.format(Locale.US, "%.${decimals}f°", it) } ?: "—"
-    fun timeAz(i: Instant?, az: Double?, zone: ZoneId): String = if (i == null) "—" else "${time(i, zone)} @ ${deg(az)}"
+    fun timeAz(i: Instant?, az: Double?, zone: ZoneId): String = if (i == null) "—" else "${time(i, zone)} @ ${az(az)}"
     fun dist(m: Double, units: UnitSystem, decimals: Int = 2) = Format.distance(m, units, decimals)
     fun km(km: Double, units: UnitSystem): String =
         if (units == UnitSystem.METRIC) String.format(Locale.US, "%,.0f km", km) else String.format(Locale.US, "%,.0f mi", km * 0.621371)
@@ -35,6 +52,11 @@ object Fmt {
     fun toDisplay(m: Double, units: UnitSystem) = if (units == UnitSystem.METRIC) m else Units.mToFt(m)
     fun fromDisplay(v: Double, units: UnitSystem) = if (units == UnitSystem.METRIC) v else Units.ftToM(v)
     fun lenUnit(units: UnitSystem) = if (units == UnitSystem.METRIC) "m" else "ft"
+    /** Short length (heights/altitudes) in m or ft without km/mi switching; optional sign. */
+    fun len(m: Double, units: UnitSystem, decimals: Int = 0, signed: Boolean = false): String =
+        String.format(Locale.US, "%${if (signed) "+" else ""}.${decimals}f %s", toDisplay(m, units), lenUnit(units))
+    /** Current unit system from settings (for places without access to composition state). */
+    val units: UnitSystem get() = com.photocapsules.PhotoCapsulesApp.instance.settings.current.units
 
     fun zoneLabel(zone: ZoneId, at: Instant): String {
         val off = zone.rules.getOffset(at)

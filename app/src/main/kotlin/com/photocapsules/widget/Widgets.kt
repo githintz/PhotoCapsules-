@@ -55,6 +55,25 @@ class SunWidget : BaseWidget() {
     }
 }
 
+/** Combined Sun + Moon + Milky Way widget. */
+class CombinedWidget : BaseWidget() {
+    override fun build(ctx: Context): RemoteViews {
+        val where = widgetLocation(ctx); val zone = ZoneId.systemDefault(); val today = LocalDate.now(zone)
+        val s = DayEvents.sun(today, zone, where); val m = DayEvents.moon(today, zone, where)
+        val info = MoonCalc.info(Instant.now(), where)
+        val noon = today.atTime(12, 0).atZone(zone).toInstant()
+        val gc = MilkyWay.visibility(noon, noon.plusSeconds(86400), where)
+        return RemoteViews(ctx.packageName, R.layout.widget_sun).apply {
+            setTextViewText(R.id.w_title, "Today · " + DayEvents.lightType(Instant.now(), where).label)
+            setTextViewText(R.id.w_line1, "Sun ↑ ${t(s.sunrise?.time, zone)}  ↓ ${t(s.sunset?.time, zone)} · golden " + s.goldenHours.joinToString(" ") { "${t(it.start, zone)}–${t(it.end, zone)}" })
+            setTextViewText(R.id.w_line2, "Blue " + s.blueHours.joinToString(" ") { "${t(it.start, zone)}–${t(it.end, zone)}" } + " · night ${t(s.astronomicalDusk, zone)}–${t(s.astronomicalDawn, zone)}")
+            setTextViewText(R.id.w_line3, "Moon ↑ ${t(m.moonrise?.time, zone)}  ↓ ${t(m.moonset?.time, zone)} · ${info.phase.label} ${(info.illumination * 100).toInt()}%")
+            setTextViewText(R.id.w_line4, if (gc.isEmpty()) "Galactic Center not visible tonight" else "Galactic Center " + gc.joinToString(" ") { "${t(it.start.time, zone)}–${t(it.end.time, zone)}" })
+            setOnClickPendingIntent(R.id.w_root, launchIntent(ctx))
+        }
+    }
+}
+
 class MoonWidget : BaseWidget() {
     override fun build(ctx: Context): RemoteViews {
         val where = widgetLocation(ctx); val zone = ZoneId.systemDefault()

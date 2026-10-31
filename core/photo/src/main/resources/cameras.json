@@ -1172,10 +1172,11 @@
  {
   "make": "DJI",
   "model": "Avata 2",
-  "sensorWidthMm": 6.4,
-  "sensorHeightMm": 4.8,
+  "sensorWidthMm": 9.6,
+  "sensorHeightMm": 7.2,
   "pixelsWide": 4000,
-  "pixelsHigh": 3000
+  "pixelsHigh": 3000,
+  "fixedFocalMm": 6.7
  },
  {
   "make": "Autel",
@@ -1216,10 +1217,10 @@
  {
   "make": "Samsung",
   "model": "Galaxy S24 Ultra (main)",
-  "sensorWidthMm": 9.6,
-  "sensorHeightMm": 7.2,
-  "pixelsWide": 12000,
-  "pixelsHigh": 9000,
+  "sensorWidthMm": 9.8,
+  "sensorHeightMm": 7.35,
+  "pixelsWide": 16320,
+  "pixelsHigh": 12240,
   "fixedFocalMm": 6.3
  }
 ]

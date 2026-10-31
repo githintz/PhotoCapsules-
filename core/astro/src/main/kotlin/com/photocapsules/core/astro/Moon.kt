@@ -51,10 +51,11 @@ data class MoonInfo(
     val parallacticAngle: Double,
 ) {
     /**
-     * Rotation (degrees, clockwise on screen) of the bright limb direction measured from the observer's zenith;
-     * 0 = lit side points straight up, 90 = lit side to the right. Used to draw the Moon as seen in the sky.
+     * Direction of the bright limb as seen by the observer, in degrees measured CLOCKWISE on screen from the
+     * zenith direction (0 = lit side up, 90 = lit side to the right). χ − q (Meeus) is counted counter-clockwise
+     * (towards the east on the sky), hence the sign change.
      */
-    val brightLimbFromZenith: Double get() = normalizeDegrees(brightLimbAngle - parallacticAngle)
+    val brightLimbFromZenith: Double get() = normalizeDegrees(parallacticAngle - brightLimbAngle)
 }
 
 object MoonCalc {

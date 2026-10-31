@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.photocapsules.core.astro.Eclipses
@@ -85,7 +86,7 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
                 Spacer(Modifier.height(2.dp))
                 val src = if (f != null && f.sun.altitude > 0) "Sun" else if (f != null && f.moon.position.altitude > 0) "Moon" else null
                 KV("Shadow length", f?.shadowLengthM?.let { Fmt.dist(it, units, 1) + " ($src)" } ?: "No shadow (Sun & Moon down)")
-                KV("Shadow direction", f?.shadowAzimuth?.let { Fmt.deg(it) } ?: "—")
+                KV("Shadow direction", f?.shadowAzimuth?.let { Fmt.az(it) } ?: "—")
                 Text("Tap to edit height", color = Palette.TextDim, fontSize = 10.sp, modifier = Modifier.clickable { edit = true })
             }
             if (edit) NumberDialog("Object height", Fmt.toDisplay(m.objectHeightM, units), Fmt.lenUnit(units), 0.01, 100000.0, false, { edit = false }) { m.objectHeightM = Fmt.fromDisplay(it, units) }
@@ -94,8 +95,8 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
             val g = m.geodetics()
             if (g == null) Text("Add the Black Pin on your subject to measure distance, bearing and elevation angle (terrain and Earth curvature included).", color = Palette.TextDim, fontSize = 12.sp)
             else {
-                KV("Distance · bearing", Fmt.dist(g.distanceM, units) + " · " + Fmt.deg(g.bearing, 2))
-                KV("Altitude difference", String.format(Locale.US, "%+.0f m", g.altitudeDiffM))
+                KV("Distance · bearing", Fmt.dist(g.distanceM, units) + " · " + Fmt.az(g.bearing, 2))
+                KV("Altitude difference", Fmt.len(g.altitudeDiffM, units, signed = true))
                 KV("Elevation angle", String.format(Locale.US, "%+.2f°", g.elevationAngle))
                 f?.let { fr ->
                     val aligned = listOf("Sun" to fr.sun, "Moon" to fr.moon.position).firstOrNull { (_, p) -> kotlin.math.abs(com.photocapsules.core.astro.angleDiff(p.azimuth, g.bearing)) < 1.0 && p.altitude > -1 }
@@ -103,10 +104,10 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
                         val (name, p) = aligned
                         val hAbove = Terrain.rayHeightAboveTarget(g.distanceM, m.redAltitude, m.blackGround, p.altitude)
                         val size = Terrain.linearSize(p.angularDiameterDeg, g.distanceM)
-                        KV("$name above Black Pin", String.format(Locale.US, "%.0f m (size %.0f m)", hAbove, size), if (hAbove >= 0) Palette.Green else Palette.Red)
+                        KV("$name above Black Pin", Fmt.len(hAbove, units) + " (size " + Fmt.len(size, units) + ")", if (hAbove >= 0) Palette.Green else Palette.Red)
                     } else fr.gc?.takeIf { kotlin.math.abs(com.photocapsules.core.astro.angleDiff(it.azimuth, g.bearing)) < 1.0 }?.let { gc ->
-                        KV("Galactic Center above Black Pin", String.format(Locale.US, "%.0f m", Terrain.rayHeightAboveTarget(g.distanceM, m.redAltitude, m.blackGround, gc.altitude)))
-                    } ?: KV("Sun/Moon size at Black Pin", f.let { String.format(Locale.US, "%.0f m / %.0f m", Terrain.linearSize(fr.sun.angularDiameterDeg, g.distanceM), Terrain.linearSize(fr.moon.position.angularDiameterDeg, g.distanceM)) })
+                        KV("Galactic Center above Black Pin", Fmt.len(Terrain.rayHeightAboveTarget(g.distanceM, m.redAltitude, m.blackGround, gc.altitude), units))
+                    } ?: KV("Sun/Moon size at Black Pin", f.let { Fmt.len(Terrain.linearSize(fr.sun.angularDiameterDeg, g.distanceM), units) + " / " + Fmt.len(Terrain.linearSize(fr.moon.position.angularDiameterDeg, g.distanceM), units) })
                 }
             }
         }
@@ -118,8 +119,8 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
             }
         }) {
             f?.let {
-                KV("Sun az · el", Fmt.deg(it.sun.azimuth, 2) + " · " + Fmt.deg(it.sun.altitude, 2), Palette.Sun)
-                KV("Moon az · el", Fmt.deg(it.moon.position.azimuth, 2) + " · " + Fmt.deg(it.moon.position.altitude, 2), Palette.Moon)
+                KV("Sun az · el", Fmt.az(it.sun.azimuth, 2) + " · " + Fmt.deg(it.sun.altitude, 2), Palette.Sun)
+                KV("Moon az · el", Fmt.az(it.moon.position.azimuth, 2) + " · " + Fmt.deg(it.moon.position.altitude, 2), Palette.Moon)
                 KV("Moon phase", it.moon.phase.label + " " + Fmt.pct(it.moon.illumination))
                 KV("Light", it.light.label)
             }
@@ -131,10 +132,16 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
                     KV("↓ Sun", Fmt.timeAz(d.sunDay?.sunset?.time, d.sunDay?.sunset?.azimuth, z), Palette.Sunset)
                     KV("↑ Moon", Fmt.timeAz(d.moonDay?.moonrise?.time, d.moonDay?.moonrise?.azimuth, z), Palette.Moonrise)
                     KV("↓ Moon", Fmt.timeAz(d.moonDay?.moonset?.time, d.moonDay?.moonset?.azimuth, z), Palette.Moonset)
-                    if (m.horizonEnabled) Text(String.format(Locale.US, "Adjusted for %.0f m above horizon", m.horizonHeightM), color = Palette.Accent, fontSize = 10.sp)
+                    if (m.horizonEnabled) Text("Adjusted for " + Fmt.len(m.horizonHeightM, units) + " above horizon", color = Palette.Accent, fontSize = 10.sp)
                 }
                 f?.let {
-                    Box(Modifier.clickable { m.instant = MoonCalendar.nextPhase(m.instant.plusSeconds(60)).time }) {
+                    // Tap: next main Moon phase; double-tap: previous main phase.
+                    Box(Modifier.pointerInput(Unit) {
+                        androidx.compose.foundation.gestures.detectTapGestures(
+                            onTap = { m.instant = MoonCalendar.nextPhase(m.instant.plusSeconds(60)).time },
+                            onDoubleTap = { m.instant = MoonCalendar.previousPhase(m.instant.minusSeconds(60)).time },
+                        )
+                    }) {
                         MoonDisc(it.moon.phaseAngle, 56.dp, rotation = it.moon.brightLimbFromZenith, background = Palette.light(it.light))
                     }
                 }
@@ -164,8 +171,8 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
         7 -> PanelBox("Milky Way position", { Toggle("Next new Moon", false) { m.instant = MoonCalendar.nextPhase(m.instant.plusSeconds(60), PrincipalPhase.NEW).time } }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    f?.gc?.let { KV("Galactic Center", Fmt.deg(it.azimuth) + " · el " + Fmt.deg(it.altitude)) }
-                    f?.arch?.maxByOrNull { it.altitude }?.let { KV("Arch highest point", Fmt.deg(it.azimuth) + " · el " + Fmt.deg(it.altitude)) }
+                    f?.gc?.let { KV("Galactic Center", Fmt.az(it.azimuth) + " · el " + Fmt.deg(it.altitude)) }
+                    f?.arch?.maxByOrNull { it.altitude }?.let { KV("Arch highest point", Fmt.az(it.azimuth) + " · el " + Fmt.deg(it.altitude)) }
                     f?.let { KV("Moon", it.moon.phase.label + " " + Fmt.pct(it.moon.illumination) + if (it.moon.position.altitude < 0) " (down)" else "") }
                 }
                 // Moon "energy" bar: full = no moonlight
@@ -209,12 +216,22 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
             } ?: Text("No eclipse selected or not visible here.", color = Palette.TextDim, fontSize = 12.sp)
         }
         else -> PanelBox("Meteor showers", { Toggle("Select", m.meteorLayer) { onMeteorPick() } }) {
-            val total = MeteorShowers.totalHourlyRate(m.instant, m.observer)
-            val occ = m.meteorCode?.let { c -> MeteorShowers.active(m.instant).firstOrNull { it.shower.code == c } ?: MeteorShowers.byCode(c)?.let { MeteorShowers.occurrence(it, m.instant.atZone(z).year) } }
-            if (occ != null) {
+            // Computed off the main thread, refreshed every 5 minutes of planner time (not on every scrub frame).
+            val bucket = m.instant.epochSecond / 300
+            val obs = m.observer
+            val total by androidx.compose.runtime.produceState(0.0, bucket, obs) {
+                value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { MeteorShowers.totalHourlyRate(java.time.Instant.ofEpochSecond(bucket * 300), obs) }
+            }
+            val code = m.meteorCode
+            val occ by androidx.compose.runtime.produceState<com.photocapsules.core.astro.ShowerOccurrence?>(null, code, m.instant.atZone(z).toLocalDate()) {
+                value = code?.let { c -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    MeteorShowers.byCode(c)?.let { sh -> listOf(-1, 0, 1).map { MeteorShowers.occurrence(sh, m.instant.atZone(z).year + it) }.minBy { kotlin.math.abs(it.peak.epochSecond - m.instant.epochSecond) } }
+                } }
+            }
+            occ?.let { occ ->
                 KV(occ.shower.name, "peak " + Fmt.dateShort(occ.peak, z) + " " + Fmt.time(occ.peak, z))
                 KV("Activity", Fmt.dateShort(occ.activityStart.atStartOfDay(z).toInstant(), z) + " – " + Fmt.dateShort(occ.activityEnd.atStartOfDay(z).toInstant(), z))
-                f?.radiant?.let { KV("Radiant", Fmt.deg(it.azimuth) + " · el " + Fmt.deg(it.altitude)) }
+                f?.radiant?.let { KV("Radiant", Fmt.az(it.azimuth) + " · el " + Fmt.deg(it.altitude)) }
             }
             KV("Meteors/h (all active)", String.format(Locale.US, "%.0f", total), Palette.Accent)
         }

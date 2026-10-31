@@ -57,7 +57,7 @@ object DayEvents {
         var t = start
         while (t.ut < end.ut) {
             val limit = end.ut - t.ut
-            val found = searchRiseSet(body, where.toObserver(), direction, t, limit, horizonHeightM) ?: break
+            val found = searchRiseSet(body, where.riseSetObserver(horizonHeightM), direction, t, limit, horizonHeightM.coerceAtLeast(0.0)) ?: break
             if (found.ut >= end.ut) break
             out.add(found)
             t = found.addDays(1.0 / 1440.0)
@@ -165,13 +165,13 @@ object DayEvents {
 
     /** Next sunrise/sunset/moonrise/moonset after [from] (searching up to [limitDays]). */
     fun nextRiseSet(body: SkyBody, rise: Boolean, from: Instant, where: GeoPoint, limitDays: Double = 2.0, horizonHeightM: Double = 0.0): TimedEvent? {
-        val t = searchRiseSet(Sky.body(body), where.toObserver(), if (rise) Direction.Rise else Direction.Set, from.toAstroTime(), limitDays, horizonHeightM)
+        val t = searchRiseSet(Sky.body(body), where.riseSetObserver(horizonHeightM), if (rise) Direction.Rise else Direction.Set, from.toAstroTime(), limitDays, horizonHeightM.coerceAtLeast(0.0))
         return t?.let { event(body, it, where) }
     }
 
     /** Previous rise/set before [from]. */
     fun previousRiseSet(body: SkyBody, rise: Boolean, from: Instant, where: GeoPoint, limitDays: Double = 2.0, horizonHeightM: Double = 0.0): TimedEvent? {
-        val t = searchRiseSet(Sky.body(body), where.toObserver(), if (rise) Direction.Rise else Direction.Set, from.toAstroTime(), -limitDays, horizonHeightM)
+        val t = searchRiseSet(Sky.body(body), where.riseSetObserver(horizonHeightM), if (rise) Direction.Rise else Direction.Set, from.toAstroTime(), -limitDays, horizonHeightM.coerceAtLeast(0.0))
         return t?.let { event(body, it, where) }
     }
 

@@ -72,10 +72,11 @@ fun pinDrawable(ctx: Context, color: Int, sizeDp: Int = 36): BitmapDrawable {
 class PlannerMapHolder(ctx: Context, model: PlannerModel) {
     val map = MapView(ctx)
     val overlay = PlannerOverlay(onToolAzimuth = { model.toolAzimuth = it; model.azimuthAtBlackPin = false }, onToolHAngle = { a ->
+        if (model.focalLocked) return@PlannerOverlay
         // Changing the wedge angle changes the focal length (unless locked by Black-Pin focus).
         val cam = PhotoCapsulesApp.instance.settings.camera()
         val (w, _) = if (model.orientation == com.photocapsules.core.photo.Orientation.LANDSCAPE) cam.sensorWidthMm to cam.sensorHeightMm else cam.sensorHeightMm to cam.sensorWidthMm
-        model.focalMm = (w / (2 * kotlin.math.tan(Math.toRadians(a) / 2))).coerceIn(1.0, 5000.0)
+        model.focalMm = (w / (2 * kotlin.math.tan(Math.toRadians(a) / 2)) / model.teleconverter).coerceIn(1.0, 5000.0)
     })
     val redMarker = Marker(map)
     val blackMarker = Marker(map)
@@ -124,13 +125,13 @@ class PlannerMapHolder(ctx: Context, model: PlannerModel) {
         val b = model.black
         if (b != null) {
             blackMarker.position = OsmPoint(b.latitude, b.longitude)
-            model.geodetics()?.let { g -> blackMarker.snippet = String.format(java.util.Locale.US, "Alt %.0f m · Δh %+.0f m · elev %+.2f°", model.blackGround, g.altitudeDiffM, g.elevationAngle) }
+            model.geodetics()?.let { g -> blackMarker.snippet = "Alt " + com.photocapsules.ui.components.Fmt.len(model.blackGround, com.photocapsules.ui.components.Fmt.units) + " · Δh " + com.photocapsules.ui.components.Fmt.len(g.altitudeDiffM, com.photocapsules.ui.components.Fmt.units, signed = true) + String.format(java.util.Locale.US, " · elev %+.2f°", g.elevationAngle) }
             if (!map.overlays.contains(blackMarker)) map.overlays.add(blackMarker)
         } else map.overlays.remove(blackMarker)
         val hp = model.horizonPin
         if (model.horizonEnabled && hp != null) {
             horizonMarker.position = OsmPoint(hp.latitude, hp.longitude)
-            horizonMarker.snippet = String.format(java.util.Locale.US, "Height above horizon %.0f m", model.horizonHeightM)
+            horizonMarker.snippet = "Height above horizon " + com.photocapsules.ui.components.Fmt.len(model.horizonHeightM, com.photocapsules.ui.components.Fmt.units)
             if (!map.overlays.contains(horizonMarker)) map.overlays.add(horizonMarker)
         } else map.overlays.remove(horizonMarker)
         if (showMyLocation && LocationService.hasPermission(ctx)) {
@@ -140,8 +141,8 @@ class PlannerMapHolder(ctx: Context, model: PlannerModel) {
     }
 
     private fun altitudeSnippet(alt: Double, model: PlannerModel) =
-        String.format(java.util.Locale.US, "%.5f, %.5f · alt %.0f m%s", model.red.latitude, model.red.longitude, alt,
-            if (model.horizonEnabled) String.format(java.util.Locale.US, " · %.0f m above horizon", model.horizonHeightM) else "")
+        String.format(java.util.Locale.US, "%.5f, %.5f · alt ", model.red.latitude, model.red.longitude) + com.photocapsules.ui.components.Fmt.len(alt, com.photocapsules.ui.components.Fmt.units) +
+            if (model.horizonEnabled) " · " + com.photocapsules.ui.components.Fmt.len(model.horizonHeightM, com.photocapsules.ui.components.Fmt.units) + " above horizon" else ""
 
     fun center(p: LatLon) = map.controller.animateTo(OsmPoint(p.latitude, p.longitude))
     fun mapCenter(): LatLon = map.mapCenter.let { LatLon(it.latitude, LatLon.normalizeLongitude(it.longitude)) }
@@ -170,9 +171,20 @@ fun PlannerMapView(model: PlannerModel, frame: PlannerFrame?, modifier: Modifier
         val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val sensor = sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         val listener = object : SensorEventListener {
-            val r = FloatArray(9); val o = FloatArray(3)
+            val r = FloatArray(9); val rr = FloatArray(9); val o = FloatArray(3)
             override fun onSensorChanged(e: SensorEvent) {
-                SensorManager.getRotationMatrixFromVector(r, e.values); SensorManager.getOrientation(r, o)
+                SensorManager.getRotationMatrixFromVector(r, e.values)
+                // Remap for the current display rotation so the heading is correct in landscape too.
+                @Suppress("DEPRECATION")
+                val rotation = (ctx.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation
+                val (ax, ay) = when (rotation) {
+                    android.view.Surface.ROTATION_90 -> SensorManager.AXIS_Y to SensorManager.AXIS_MINUS_X
+                    android.view.Surface.ROTATION_180 -> SensorManager.AXIS_MINUS_X to SensorManager.AXIS_MINUS_Y
+                    android.view.Surface.ROTATION_270 -> SensorManager.AXIS_MINUS_Y to SensorManager.AXIS_X
+                    else -> SensorManager.AXIS_X to SensorManager.AXIS_Y
+                }
+                SensorManager.remapCoordinateSystem(r, ax, ay, rr)
+                SensorManager.getOrientation(rr, o)
                 val decl = LocationService.magneticDeclination(model.red.latitude, model.red.longitude, 0.0, System.currentTimeMillis())
                 holder.map.mapOrientation = -(Math.toDegrees(o[0].toDouble()) + decl).toFloat()
             }

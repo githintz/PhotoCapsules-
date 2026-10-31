@@ -152,8 +152,8 @@ private fun PlanDetailDialog(plan: Plan, onDismiss: () -> Unit, onOpen: () -> Un
         text = {
             Column {
                 ValueRow("Date", Fmt.dateTime(t, zone))
-                ValueRow("Sun", "az ${Fmt.deg(sun.azimuth)} · el ${Fmt.deg(sun.altitude)}")
-                ValueRow("Moon", "az ${Fmt.deg(moon.position.azimuth)} · el ${Fmt.deg(moon.position.altitude)} · ${Fmt.pct(moon.illumination)}")
+                ValueRow("Sun", "az ${Fmt.az(sun.azimuth)} · el ${Fmt.deg(sun.altitude)}")
+                ValueRow("Moon", "az ${Fmt.az(moon.position.azimuth)} · el ${Fmt.deg(moon.position.altitude)} · ${Fmt.pct(moon.illumination)}")
                 if (current.notes.isNotBlank()) Text(current.notes, color = Palette.TextDim, modifier = Modifier.padding(8.dp))
                 Row {
                     TextButton(onClick = { rename = true }) { Text("Rename") }
@@ -286,7 +286,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                 ValueRow("Map type", s.mapType.label, onClick = { dialog = "map" })
                 ValueRow("Coordinate format", s.coordinateFormat.name, onClick = { dialog = "coord" })
                 ValueRow("Azimuth reference", s.azimuthReference.label, onClick = { dialog = "az" })
-                ValueRow("Time format", if (s.use24h) "24 h" else "12 h", onClick = { store.update { it.copy(use24h = !it.use24h) }; Fmt.use24h = !s.use24h })
+                ValueRow("Time format", if (s.use24h) "24 h" else "12 h", onClick = { store.update { it.copy(use24h = !it.use24h) } })
+                ValueRow("Supermoon definition", if (s.supermoonKm > 0) String.format(java.util.Locale.US, "Full Moon < %,.0f km", s.supermoonKm) else "Within 90 % of perigee", onClick = { dialog = "super" })
             }
             SectionTitle("Augmented reality")
             Card {
@@ -310,6 +311,9 @@ fun SettingsScreen(onBack: () -> Unit) {
         "coord" -> ChoiceDialog("Coordinate format", CoordinateFormat.entries, { when (it) { CoordinateFormat.DDD -> "Decimal degrees (DDD)"; CoordinateFormat.DMM -> "Degrees decimal minutes (DMM)"; CoordinateFormat.DMS -> "Degrees minutes seconds (DMS)" } }, s.coordinateFormat, { dialog = null }) { v -> store.update { it.copy(coordinateFormat = v) } }
         "az" -> ChoiceDialog("Azimuth reference", AzimuthReference.entries, { it.label }, s.azimuthReference, { dialog = null }) { v -> store.update { it.copy(azimuthReference = v) } }
         "height" -> NumberDialog("Device height", Fmt.toDisplay(s.deviceHeightM, s.units), Fmt.lenUnit(s.units), 0.1, 10000.0, false, { dialog = null }) { v -> store.update { it.copy(deviceHeightM = Fmt.fromDisplay(v, s.units)) } }
+        "super" -> ChoiceDialog("Supermoon definition", listOf(0.0, 360_000.0, 361_524.0, 362_000.0), {
+            if (it == 0.0) "Within 90 % of perigee (Nolle, timeanddate)" else String.format(java.util.Locale.US, "Full Moon closer than %,.0f km", it)
+        }, s.supermoonKm, { dialog = null }) { v -> store.update { it.copy(supermoonKm = v) } }
         "camera" -> CameraPickerDialog(store.camera(), { dialog = null }) { c -> store.update { it.copy(cameraName = c.name) } }
     }
 }

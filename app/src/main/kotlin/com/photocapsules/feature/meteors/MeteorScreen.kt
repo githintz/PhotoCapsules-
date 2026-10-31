@@ -83,8 +83,19 @@ fun MeteorScreen(onBack: () -> Unit, go: (String) -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     LiveClock()
+    val shareCtx = androidx.compose.ui.platform.LocalContext.current
     AppScreen("Meteor Showers", onBack, bottomBar = {
-        BottomActions("AR" to { AppState.ar = ArRequest(AppState.sky.value, meteorShowerCode = selected); go(Routes.ar(ArMode.NIGHT)) })
+        BottomActions(
+            "AR" to { AppState.ar = ArRequest(AppState.sky.value, meteorShowerCode = selected); go(Routes.ar(ArMode.NIGHT)) },
+            "Planner" to { AppState.pendingPlannerContext.value = AppState.sky.value; go(Routes.PLANNER) },
+            "Share" to {
+                val c = AppState.sky.value
+                val body = MeteorShowers.active(c.instant).joinToString("\n", prefix = "Active meteor showers – " + Fmt.date(c.instant, c.zone) + "\n") { o ->
+                    o.shower.name + ": peak " + Fmt.dateTime(o.peak, c.zone) + ", ZHR " + o.shower.zhr.toInt()
+                }
+                com.photocapsules.feature.common.shareText(shareCtx, "Meteor showers", body)
+            },
+        )
     }) { p ->
         ScrollColumn(p) {
             SkyContextBar()
@@ -102,15 +113,14 @@ private fun EnergyBar(fraction: Double) {
 }
 
 /** Quality score: peak ZHR (log-scaled) × fraction of the peak night free of moonlight. */
-private fun quality(occ: ShowerOccurrence, where: GeoPoint, zone: ZoneId): Double {
-    val illum = MoonCalc.info(occ.peak, where).illumination
+private fun quality(occ: ShowerOccurrence, illum: Double): Double {
     val z = kotlin.math.ln(1 + occ.shower.zhr) / kotlin.math.ln(151.0)
     return (z * (1 - 0.8 * illum)).coerceIn(0.0, 1.0)
 }
 
 @Composable
 private fun ShowerRow(occ: ShowerOccurrence, zone: ZoneId, where: GeoPoint, onClick: () -> Unit) {
-    val moon = MoonCalc.info(occ.peak, where)
+    val moon = remember(occ.peak, where) { MoonCalc.info(occ.peak, where) }
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(occ.shower.name + if (occ.shower.daytime) " (daytime)" else "", color = Palette.Text)
@@ -121,7 +131,7 @@ private fun ShowerRow(occ: ShowerOccurrence, zone: ZoneId, where: GeoPoint, onCl
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             MoonDisc(moon.phaseAngle, 24.dp)
-            EnergyBar(quality(occ, where, zone))
+            EnergyBar(quality(occ, moon.illumination))
         }
     }
 }
@@ -136,7 +146,24 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
     val upcoming = remember(date) {
         (date.year..date.year + 1).flatMap { MeteorShowers.occurrences(it) }.filter { it.peak.isAfter(ctx.instant) && it.shower.showerClass == 1 }.take(6)
     }
-    val total = MeteorShowers.totalHourlyRate(ctx.instant, where)
+    val total by produceState(0.0, ctx.instant, where) { value = withContext(Dispatchers.Default) { MeteorShowers.totalHourlyRate(ctx.instant, where) } }
+    data class NightInfo(val sunset: Instant?, val sunrise: Instant?, val moonrise: Instant?, val moonset: Instant?, val gc: List<MilkyWay.Visibility>)
+    val nightInfo by produceState<NightInfo?>(null, date, where, zone) {
+        value = withContext(Dispatchers.Default) {
+            val md = DayEvents.moon(date, zone, where)
+            NightInfo(DayEvents.sun(date, zone, where).sunset?.time, DayEvents.sun(date.plusDays(1), zone, where).sunrise?.time,
+                md.moonrise?.time, md.moonset?.time, MilkyWay.visibility(ns, ne, where))
+        }
+    }
+    val positions by produceState<List<List<String>>>(emptyList(), ctx.instant, where, active) {
+        value = withContext(Dispatchers.Default) {
+            val mp = Sky.position(SkyBody.MOON, ctx.instant, where)
+            listOf(listOf("Moon", Fmt.az(mp.azimuth), Fmt.deg(mp.altitude), "")) + active.map { o ->
+                val r = MeteorShowers.radiantPosition(o, ctx.instant, where)
+                listOf(o.shower.code, Fmt.az(r.azimuth), Fmt.deg(r.altitude), String.format(Locale.US, "%.1f", MeteorShowers.hourlyRate(o, ctx.instant, where)))
+            }
+        }
+    }
     // Peak hourly rate of the night (sampled every 15 min)
     val nightCurve by produceState<List<Triple<Instant, Double, Pair<Double, Double>>>>(emptyList(), date, where, selected) {
         value = withContext(Dispatchers.Default) {
@@ -204,19 +231,14 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
     }
     SectionTitle("Sun, Moon & Milky Way")
     Card {
-        val sun = DayEvents.sun(date, zone, where)
-        val md = DayEvents.moon(date, zone, where)
-        ValueRow("Sunset / sunrise", Fmt.time(sun.sunset?.time, zone) + " / " + Fmt.time(DayEvents.sun(date.plusDays(1), zone, where).sunrise?.time, zone))
-        ValueRow("Moonrise / moonset", Fmt.time(md.moonrise?.time, zone) + " / " + Fmt.time(md.moonset?.time, zone))
-        val gc = MilkyWay.visibility(ns, ne, where)
-        ValueRow("Galactic Center visible", if (gc.isEmpty()) "Not visible" else gc.joinToString { Fmt.time(it.start.time, zone) + "–" + Fmt.time(it.end.time, zone) })
+        val ni = nightInfo
+        ValueRow("Sunset / sunrise", Fmt.time(ni?.sunset, zone) + " / " + Fmt.time(ni?.sunrise, zone))
+        ValueRow("Moonrise / moonset", Fmt.time(ni?.moonrise, zone) + " / " + Fmt.time(ni?.moonset, zone))
+        val gc = ni?.gc.orEmpty()
+        ValueRow("Galactic Center visible", if (ni == null) "…" else if (gc.isEmpty()) "Not visible" else gc.joinToString { Fmt.time(it.start.time, zone) + "–" + Fmt.time(it.end.time, zone) })
     }
     SectionTitle("Positions now")
-    SimpleTable(listOf("", "Az", "El", "Met/h"), listOf(listOf("Moon", Fmt.deg(moon.position.azimuth), Fmt.deg(moon.position.altitude), "")) +
-        active.map { o ->
-            val r = MeteorShowers.radiantPosition(o, ctx.instant, where)
-            listOf(o.shower.code, Fmt.deg(r.azimuth), Fmt.deg(r.altitude), String.format(Locale.US, "%.1f", MeteorShowers.hourlyRate(o, ctx.instant, where)))
-        })
+    SimpleTable(listOf("", "Az", "El", "Met/h"), positions)
     InfoText("Hourly rate = ZHR × sin(radiant elevation), following each shower's activity profile (IMO data). Actual rates also depend on sky darkness.")
 }
 

@@ -33,6 +33,14 @@ class GeodesyTest {
         }
     }
 
+    @Test fun randomNearAntipodalMatchesGeographiclib() {
+        for (c in golden["antipodal"]!!.jsonArray.map { it.jsonObject }) {
+            val r = Geodesy.inverse(LatLon(c.d("lat1"), c.d("lon1")), LatLon(c.d("lat2"), c.d("lon2")))
+            assertEquals(c.d("s12"), r.distanceMeters, 0.05, "distance $c")
+            assertTrue(angDiff(r.initialBearing, c.d("azi1")) < 1e-3, "azi1 $c -> ${r.initialBearing}")
+        }
+    }
+
     @Test fun directMatchesGeographiclib() {
         for (c in golden["direct"]!!.jsonArray.map { it.jsonObject }) {
             val p = Geodesy.direct(LatLon(c.d("lat1"), c.d("lon1")), c.d("azi1"), c.d("s12"))
@@ -41,9 +49,24 @@ class GeodesyTest {
         }
     }
 
-    @Test fun nearlyAntipodalDoesNotCrash() {
-        val r = Geodesy.inverse(LatLon(0.0, 0.0), LatLon(0.5, 179.7))
-        assertTrue(r.distanceMeters > 19_900_000 && r.distanceMeters < 20_040_000, "${r.distanceMeters}")
+    @Test fun nearlyAntipodalMatchesGeographiclib() {
+        // Reference values: geographiclib 2.1 (Karney), WGS84
+        val cases = listOf(
+            listOf(0.0, 0.0, 0.5, 179.7, 19944127.420750458, 15.556882793490544, 164.44251389085494),
+            listOf(10.0, 20.0, -10.2, -160.1, 19981121.597810656, 172.79575934236897, 7.208716058322592),
+            listOf(-30.0, 40.0, 30.1, -140.3, 19986110.507817283, 27.38337665208571, 152.58678883775053),
+            listOf(0.0, 0.0, 0.0, 179.6, 19989165.416035745, 41.537175375184965, 138.46282462481503),
+        )
+        for (c in cases) {
+            val r = Geodesy.inverse(LatLon(c[0], c[1]), LatLon(c[2], c[3]))
+            assertEquals(c[4], r.distanceMeters, 0.05, "distance $c")
+            assertTrue(angDiff(r.initialBearing, c[5]) < 1e-4, "azi1 $c -> ${r.initialBearing}")
+            assertTrue(angDiff(r.finalBearing, c[6]) < 1e-3, "azi2 $c -> ${r.finalBearing}")
+        }
+        // Exactly antipodal on the equator: half meridian, over either pole
+        val r = Geodesy.inverse(LatLon(0.0, 0.0), LatLon(0.0, 180.0))
+        assertEquals(20003931.4586, r.distanceMeters, 0.05)
+        assertTrue(angDiff(r.initialBearing, 0.0) < 1e-4 || angDiff(r.initialBearing, 180.0) < 1e-4, "${r.initialBearing}")
     }
 
     @Test fun samePointIsZero() {

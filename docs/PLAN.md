@@ -43,11 +43,13 @@ PhotoCapsules/
 | Magnetic declination | Android `GeomagneticField` (WMM, offline) |
 
 ## Key definitions (match PhotoPills)
-* **Sunrise/sunset**: upper limb, 34′ refraction. With "height above horizon", the horizon dip is applied.
+* **Sunrise/sunset**: upper limb, fixed 34′ refraction, independent of ground elevation (USNO convention). With "height above horizon", the horizon dip is applied.
 * **Twilights**: civil −6°, nautical −12°, astronomical −18° (Sun centre, no refraction).
 * **Golden hour**: Sun from −4° to +6°. **Blue hour**: −6° to −4°.
 * **Galactic Center visibility**: GC (RA 17h45m40.04s, Dec −29°00′28.1″ J2000) above the horizon while the Sun is below −18°.
-* **Supermoon**: a full Moon within ±1 day of a perigee, or Earth–Moon centre distance < 360,000 km (configurable).
+* **Supermoon** (configurable in Settings):
+  * Default: R. Nolle / timeanddate rule. A full Moon within 90 % of perigee of that orbit, i.e. d ≤ P + 0.1·(A − P).
+  * Alternative: a fixed distance threshold.
 * **Spot stars**:
   * 500 rule: t = 500/(crop·f).
   * NPF default (simplified, Michaud): t = (35N + 30p)/(f·cos δ).

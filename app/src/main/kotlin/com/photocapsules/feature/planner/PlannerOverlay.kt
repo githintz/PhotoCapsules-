@@ -369,6 +369,32 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
             CompositionGrid.DIAGONAL -> { c.drawLine(tl.x, tl.y, br.x, br.y, gp); c.drawLine(tr.x, tr.y, bl.x, bl.y, gp) }
             CompositionGrid.TRIANGLE -> { c.drawLine(tl.x, tl.y, br.x, br.y, gp); val k = lerp(tl, br, 0.5f); c.drawLine(tr.x, tr.y, (tr.x + bl.x) / 2 + (k.x - (tr.x + bl.x) / 2) * 0.6f, (tr.y + bl.y) / 2 + (k.y - (tr.y + bl.y) / 2) * 0.6f, gp) }
             CompositionGrid.CROSSHAIR -> { vline(0.5f); hline(0.5f) }
+            CompositionGrid.SPIRAL -> {
+                // Fibonacci-style golden spiral: quarter arcs in successively smaller squares, mapped into the frame.
+                fun at(u: Float, v: Float): PointF { val top = lerp(tl, tr, u); val bot = lerp(bl, br, u); return lerp(top, bot, v) }
+                val path = Path(); var first = true
+                var x0 = 0f; var y0 = 0f; var w0 = 1f; var h0 = 1f
+                val phi = 0.618034f
+                for (k in 0 until 8) {
+                    // Square of side s carved from the remaining rectangle, rotating CW each step.
+                    val dir = k % 4
+                    val sW = if (dir % 2 == 0) w0 * phi else w0; val sH = if (dir % 2 == 0) h0 else h0 * phi
+                    val (cx, cy, a0) = when (dir) {
+                        0 -> Triple(x0 + sW, y0 + sH, 180f)
+                        1 -> Triple(x0, y0 + sH, 270f)
+                        2 -> Triple(x0 + w0 - sW, y0, 0f)
+                        else -> Triple(x0 + w0, y0 + h0 - sH, 90f)
+                    }
+                    for (i in 0..12) {
+                        val ang = Math.toRadians((a0 + 90f * i / 12f).toDouble())
+                        val u = cx + sW * kotlin.math.cos(ang).toFloat(); val v = cy + sH * kotlin.math.sin(ang).toFloat()
+                        val pt = at(u.coerceIn(0f, 1f), v.coerceIn(0f, 1f))
+                        if (first) { path.moveTo(pt.x, pt.y); first = false } else path.lineTo(pt.x, pt.y)
+                    }
+                    when (dir) { 0 -> { x0 += sW; w0 -= sW }; 1 -> { y0 += sH; h0 -= sH }; 2 -> { w0 -= sW }; else -> { h0 -= sH } }
+                }
+                c.drawPath(path, gp)
+            }
             CompositionGrid.NONE -> {}
         }
     }

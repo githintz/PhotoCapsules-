@@ -16,7 +16,20 @@ import javax.xml.parsers.DocumentBuilderFactory
 object Kml {
     private const val NS_PC = "photocapsules"
 
-    private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+    /** XML-escapes and drops characters that are not allowed in XML 1.0 (so backups always re-import). */
+    private fun esc(s: String): String {
+        val clean = StringBuilder(s.length)
+        var i = 0
+        while (i < s.length) {
+            val cp = s.codePointAt(i)
+            val ok = cp == 0x9 || cp == 0xA || cp == 0xD || cp in 0x20..0xD7FF || cp in 0xE000..0xFFFD || cp in 0x10000..0x10FFFF
+            if (ok) clean.appendCodePoint(cp)
+            i += Character.charCount(cp)
+        }
+        return clean.toString().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+    }
+
+    private fun coords(lon: Double, lat: Double, alt: Double?) = if (alt != null) "$lon,$lat,$alt" else "$lon,$lat"
 
     fun toKml(state: LibraryState, documentName: String = "PhotoCapsules"): String = buildString {
         append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -31,12 +44,12 @@ object Kml {
             data("redAltitude", p.redPin.altitudeM); data("redOffset", p.redPin.offsetM)
             p.blackPin?.let { data("blackLat", it.latitude); data("blackLon", it.longitude); data("blackAltitude", it.altitudeM); data("blackOffset", it.offsetM) }
             append("</ExtendedData>\n")
-            append("<Point><coordinates>${p.redPin.longitude},${p.redPin.latitude},${p.redPin.altitudeM ?: 0.0}</coordinates></Point>\n</Placemark>\n")
+            append("<Point><coordinates>${coords(p.redPin.longitude, p.redPin.latitude, p.redPin.altitudeM)}</coordinates></Point>\n</Placemark>\n")
         }
         for (p in state.pois) {
             append("<Placemark>\n<name>${esc(p.name)}</name>\n<description>${esc(p.notes)}</description>\n<ExtendedData>\n")
             append("<Data name=\"$NS_PC:type\"><value>poi</value></Data>\n<Data name=\"$NS_PC:id\"><value>${esc(p.id)}</value></Data>\n")
-            append("</ExtendedData>\n<Point><coordinates>${p.longitude},${p.latitude},${p.altitudeM ?: 0.0}</coordinates></Point>\n</Placemark>\n")
+            append("</ExtendedData>\n<Point><coordinates>${coords(p.longitude, p.latitude, p.altitudeM)}</coordinates></Point>\n</Placemark>\n")
         }
         append("</Document>\n</kml>\n")
     }
@@ -85,7 +98,7 @@ object Kml {
             val lon = coords[0].toDoubleOrNull() ?: continue
             val lat = coords[1].toDoubleOrNull() ?: continue
             if (lat !in -90.0..90.0 || lon !in -180.0..180.0) continue
-            val alt = coords.getOrNull(2)?.toDoubleOrNull()?.takeIf { it != 0.0 }
+            val alt = coords.getOrNull(2)?.toDoubleOrNull()
             val data = HashMap<String, String>()
             val dataNodes = pm.getElementsByTagName("Data")
             for (j in 0 until dataNodes.length) {

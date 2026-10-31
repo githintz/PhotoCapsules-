@@ -19,18 +19,20 @@ object NightSky {
     /** Line of constant declination (of date): celestial equator for 0°, star-trail circles otherwise. */
     fun declinationCircle(decDeg: Double, instant: Instant, where: GeoPoint, stepDeg: Double = 3.0): List<HorizontalCoord> {
         val t = instant.toAstroTime()
+        val rot = io.github.cosinekitty.astronomy.rotationEqdHor(t, where.toObserver())
         val out = ArrayList<HorizontalCoord>()
         var ra = 0.0
-        while (ra <= 360.0) { out.add(Sky.ofDatePoint(ra, decDeg, t, where, refraction = true)); ra += stepDeg }
+        while (ra <= 360.0) { out.add(Sky.toHorizontal(rot.rotate(Sky.unitVector(ra, decDeg, t)), refraction = true)); ra += stepDeg }
         return out
     }
 
     /** Line of constant right ascension (of date) from dec −90 to +90. */
     fun hourCircle(raDeg: Double, instant: Instant, where: GeoPoint, stepDeg: Double = 3.0): List<HorizontalCoord> {
         val t = instant.toAstroTime()
+        val rot = io.github.cosinekitty.astronomy.rotationEqdHor(t, where.toObserver())
         val out = ArrayList<HorizontalCoord>()
         var dec = -90.0
-        while (dec <= 90.0) { out.add(Sky.ofDatePoint(raDeg, dec, t, where, refraction = true)); dec += stepDeg }
+        while (dec <= 90.0) { out.add(Sky.toHorizontal(rot.rotate(Sky.unitVector(raDeg, dec, t)), refraction = true)); dec += stepDeg }
         return out
     }
 

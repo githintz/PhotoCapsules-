@@ -107,9 +107,20 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
     LaunchedEffect(pendingPlan) {
         pendingPlan?.let { id -> PhotoCapsulesApp.instance.library.load().plans.firstOrNull { it.id == id }?.let { m.load(it) }; AppState.pendingPlanId.value = null }
     }
+    // Returning from the AR target picker reopens Find with the picked direction.
+    val findTarget by AppState.findTarget.collectAsState()
+    LaunchedEffect(findTarget) { if (findTarget != null) dialog = "find" }
+    val pendingCtx by AppState.pendingPlannerContext.collectAsState()
+    LaunchedEffect(pendingCtx) {
+        pendingCtx?.let { c ->
+            m.moveRed(LatLon(c.point.latitude, c.point.longitude)); m.instant = c.instant; m.zone = c.zone
+            m.zoneAuto = c.live; m.centerRequest++
+            AppState.pendingPlannerContext.value = null
+        }
+    }
     val pendingLoc by AppState.pendingPlannerLocation.collectAsState()
     LaunchedEffect(pendingLoc) {
-        pendingLoc?.let { p -> m.moveRed(LatLon(p.latitude, p.longitude)); if (p.elevationM != 0.0) m.redTerrain = p.elevationM; m.centerRequest++; AppState.pendingPlannerLocation.value = null }
+        pendingLoc?.let { p -> m.moveRed(LatLon(p.latitude, p.longitude)); if (p.elevationM != 0.0) m.redCustomAltitude = p.elevationM; m.centerRequest++; AppState.pendingPlannerLocation.value = null }
     }
 
     // Terrain elevation + time zone lookups (debounced) when pins move.
@@ -129,6 +140,8 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
         delay(400)
         OnlineServices.elevation(hp.latitude, hp.longitude)?.let { m.horizonPinTerrain = it }
     }
+
+    LaunchedEffect(m.red) { com.photocapsules.ui.components.Fmt.setLocation(m.red.latitude, m.red.longitude) }
 
     pendingBlackToggle = {
         if (m.black == null) m.moveBlack(holder?.mapCenter()?.let { c -> if (Geodesy.haversine(c, m.red) < 5) Geodesy.direct(m.red, 45.0, 500.0) else c } ?: Geodesy.direct(m.red, 45.0, 500.0))
@@ -156,18 +169,25 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
     val sun = Sky.position(SkyBody.SUN, m.instant, obs)
     val moon = MoonCalc.info(m.instant, obs)
     val gc = MilkyWay.galacticCenter(m.instant, obs)
-    val arch = if (m.milkyWay) MilkyWay.arch(m.instant, obs, 3.0).map { it.second } else emptyList()
-    val archInfo = if (m.milkyWay) MilkyWay.archInfo(m.instant, obs) else null
-    val occ = m.meteorCode?.let { c -> MeteorShowers.byCode(c)?.let { sh -> listOf(-1, 0, 1).map { MeteorShowers.occurrence(sh, m.instant.atZone(m.zone).year + it) }.minBy { kotlin.math.abs(it.peak.epochSecond - m.instant.epochSecond) } } }
+    // Slow-changing geometry is cached by minute / by day so scrubbing the time bar stays fluid.
+    val minute = m.instant.epochSecond / 60
+    val arch = remember(m.milkyWay, minute, obs) { if (m.milkyWay) MilkyWay.arch(m.instant, obs, 3.0).map { it.second } else emptyList() }
+    val archInfo = remember(m.milkyWay, minute, obs) { if (m.milkyWay) MilkyWay.archInfo(m.instant, obs) else null }
+    val year = m.instant.atZone(m.zone).year
+    val occ = remember(m.meteorCode, year, m.instant.epochSecond / 86400) {
+        m.meteorCode?.let { c -> MeteorShowers.byCode(c)?.let { sh -> listOf(-1, 0, 1).map { MeteorShowers.occurrence(sh, year + it) }.minBy { kotlin.math.abs(it.peak.epochSecond - m.instant.epochSecond) } } }
+    }
     val radiant = occ?.let { MeteorShowers.radiantPosition(it, m.instant, obs) }
-    val radiantPath = if (m.meteorLayer && occ != null) (0..48).map { i -> MeteorShowers.radiantPosition(occ, m.instant.minusSeconds(43200).plusSeconds(i * 1800L), obs) } else emptyList()
+    val radiantPath = remember(m.meteorLayer, occ, m.instant.epochSecond / 1800, obs) {
+        if (m.meteorLayer && occ != null) (0..48).map { i -> MeteorShowers.radiantPosition(occ, m.instant.minusSeconds(43200).plusSeconds(i * 1800L), obs) } else emptyList()
+    }
     val shadowSource = if (sun.altitude > 0) sun else if (moon.position.altitude > 0) moon.position else null
     val shadowLen = shadowSource?.let { s -> Sky.shadowRatio(s.altitude)?.let { it * m.objectHeightM } }
     val cam = PhotoCapsulesApp.instance.settings.camera()
     val (frameW, frameH) = if (m.orientation == Orientation.LANDSCAPE) cam.sensorWidthMm to cam.sensorHeightMm else cam.sensorHeightMm to cam.sensorWidthMm
-    val hAngle = FieldOfView.angleDeg(frameW, m.focalMm)
+    val hAngle = FieldOfView.angleDeg(frameW, m.focalMm * m.teleconverter)
     val focus = m.effectiveFocus()
-    val dof = if (m.tool == MapTool.DOF && focus * 1000 > m.focalMm) DepthOfField.compute(DofInput(m.focalMm, m.aperture, focus, cam.circleOfConfusionMm)) else null
+    val dof = if (m.tool == MapTool.DOF && focus * 1000 > m.focalMm * m.teleconverter) DepthOfField.compute(DofInput(m.focalMm, m.aperture, focus, cam.circleOfConfusionMm, m.teleconverter)) else null
     val smBody = if (m.sunMoonToolBody == 0) sun else moon.position
     val g = m.geodetics()
     val frame = PlannerFrame(
@@ -252,7 +272,10 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
         }
     }
     when (dialog) {
-        "find" -> FindDialog(m) { dialog = null }
+        "find" -> FindDialog(m, mapCenter = { holder?.mapCenter() }, onPickWithAr = {
+            dialog = null
+            AppState.ar = ArRequest(skyContext(m)); go(Routes.ar(ArMode.FIND_TARGET))
+        }) { dialog = null }
         "load" -> LoadDialog(m) { dialog = null }
         "save" -> SaveDialog(m) { dialog = null }
         "more" -> MoreDialog(m) { dialog = null }
