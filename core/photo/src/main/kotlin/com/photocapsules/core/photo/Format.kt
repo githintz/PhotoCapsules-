@@ -45,7 +45,7 @@ object Format {
         return if (neg) "-$out" else out
     }
 
-    fun aperture(n: Double): String = "f/" + trimZeros(String.format(Locale.US, if (n < 10) "%.1f" else "%.0f", n))
+    fun aperture(n: Double): String = "f/" + trimZeros(String.format(Locale.US, if (n < 1) "%.2f" else if (n < 10) "%.1f" else "%.0f", n))
 
     fun distance(m: Double, units: UnitSystem, decimals: Int = 2): String {
         if (m.isInfinite()) return "∞"

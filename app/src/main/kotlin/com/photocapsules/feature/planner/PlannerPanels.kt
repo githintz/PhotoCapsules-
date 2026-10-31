@@ -108,6 +108,9 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
                         KV("$name above Black Pin", Fmt.len(hAbove, units) + " (size " + Fmt.len(size, units) + ")", if (hAbove >= 0) Palette.Green else Palette.Red)
                     } else fr.gc?.takeIf { kotlin.math.abs(com.photocapsules.core.astro.angleDiff(it.azimuth, g.bearing)) < 1.0 }?.let { gc ->
                         KV("Galactic Center above Black Pin", Fmt.len(Terrain.rayHeightAboveTarget(g.distanceM, m.redAltitude, m.blackGround, gc.altitude), units))
+                    } ?: fr.arch.filter { it.altitude > 0 }.minByOrNull { kotlin.math.abs(com.photocapsules.core.astro.angleDiff(it.azimuth, g.bearing)) }
+                        ?.takeIf { kotlin.math.abs(com.photocapsules.core.astro.angleDiff(it.azimuth, g.bearing)) < 2.0 }?.let { a ->
+                        KV("Milky Way arch above Black Pin", Fmt.len(Terrain.rayHeightAboveTarget(g.distanceM, m.redAltitude, m.blackGround, a.altitude), units))
                     } ?: KV("Sun/Moon size at Black Pin", f.let { Fmt.len(Terrain.linearSize(fr.sun.angularDiameterDeg, g.distanceM), units) + " / " + Fmt.len(Terrain.linearSize(fr.moon.position.angularDiameterDeg, g.distanceM), units) })
                 }
             }

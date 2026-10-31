@@ -117,6 +117,17 @@ class AstroGoldenTest {
         }
     }
 
+    @Test fun galacticCenterRiseSetAltitudeIsHorizon() {
+        val where = GeoPoint(40.4168, -3.7038, 667.0)
+        val ev = MilkyWay.riseSet(Instant.parse("2026-07-14T00:00:00Z"), Instant.parse("2026-07-16T00:00:00Z"), where)
+        assertTrue(ev.size >= 3, "$ev")
+        for (e in ev) {
+            assertEquals(0.0, Sky.fixedPoint(MilkyWay.GC_RA_HOURS, MilkyWay.GC_DEC_DEG, e.time, where).altitude, 0.05)
+            // GC (dec −29°) rises in the SE and sets in the SW from 40°N
+            assertTrue(if (e.rising) e.azimuth in 120.0..150.0 else e.azimuth in 210.0..240.0, "$e")
+        }
+    }
+
     @Test fun solarLongitudeJ2000() {
         for (r in g["solarLongitude"]!!.jsonArray.map { it.o() }) {
             val ours = MeteorShowers.solarLongitudeJ2000(parseUtc(r.s("utc")!!))

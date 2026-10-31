@@ -40,10 +40,17 @@ object Geodesy {
         // Near the antipode Vincenty may fail or converge to a non-shortest geodesic: also solve numerically
         // and keep the shorter result.
         if (haversine(p1, p2) > 19_500_000.0) {
-            val n = antipodalInverse(p1, p2)
-            if (n.distanceMeters < v.distanceMeters - 1e-3) return n
+            val key = listOf(p1.latitude, p1.longitude, p2.latitude, p2.longitude)
+            val n = synchronized(antipodalCache) { antipodalCache[key] } ?: antipodalInverse(p1, p2)?.also { r -> synchronized(antipodalCache) { antipodalCache[key] = r } }
+            // Only a numeric solution that genuinely reaches p2 may replace Vincenty's (never a spherical estimate).
+            if (n != null && (v.distanceMeters.isNaN() || n.distanceMeters < v.distanceMeters - 1e-3)) return n
         }
         return v
+    }
+
+    /** Small memo: the numeric antipodal solver is expensive and the UI asks for the same pins repeatedly. */
+    private val antipodalCache = object : LinkedHashMap<List<Double>, GeodesicInverse>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<Double>, GeodesicInverse>?) = size > 32
     }
 
     private fun vincentyInverse(p1: LatLon, p2: LatLon): GeodesicInverse {
@@ -74,7 +81,7 @@ object Geodesy {
             lambda = l + (1 - c) * f * sinAlpha *
                 (sigma + c * sinSigma * (cos2SigmaM + c * cosSigma * (-1 + 2 * cos2SigmaM * cos2SigmaM)))
             if (abs(lambda - lambdaPrev) < 1e-12) break
-            if (++iter > 200 || abs(lambda) > PI) return antipodalInverse(p1, p2)
+            if (++iter > 200 || abs(lambda) > PI) return antipodalInverse(p1, p2) ?: sphericalFallback(p1, p2)
         }
         val uSq = cos2Alpha * (a * a - b * b) / (b * b)
         val bigA = 1 + uSq / 16384 * (4096 + uSq * (-768 + uSq * (320 - 175 * uSq)))
@@ -132,11 +139,13 @@ object Geodesy {
      * numerically with the direct problem: find the azimuth whose geodesic passes through p2, and the
      * distance along it. Accurate to millimetres.
      */
-    internal fun antipodalInverse(p1: LatLon, p2: LatLon): GeodesicInverse {
+    internal fun antipodalInverse(p1: LatLon, p2: LatLon): GeodesicInverse? {
+        val lowS = 0.98 * haversine(p1, p2)
         fun miss(az: Double, s: Double) = haversine(direct(p1, az, s), p2)
         fun bestS(az: Double): Pair<Double, Double> {
-            // Golden-section search for the closest approach along this azimuth near half the meridian length.
-            var a = 1.97e7; var b = 2.0040e7
+            // Golden-section search for the closest approach along this azimuth (the shortest geodesic is
+            // between ~0.98 × the spherical distance and half the meridian circumference + margin).
+            var a = lowS; var b = 2.0041e7
             val g = (sqrt(5.0) - 1) / 2
             var c = b - g * (b - a); var d = a + g * (b - a)
             var fc = miss(az, c); var fd = miss(az, d)
@@ -167,7 +176,7 @@ object Geodesy {
             val (sDist, miss) = bestS(az)
             if (miss < 0.5) candidates.add(az to sDist)
         }
-        val best = candidates.minByOrNull { it.second } ?: return sphericalFallback(p1, p2)
+        val best = candidates.minByOrNull { it.second } ?: return null
         val az1 = best.first
         val s = best.second
         // Final azimuth: ellipsoidal bearing at p2 of the short geodesic arriving from 10 km back along the path.

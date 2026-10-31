@@ -167,7 +167,8 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
     // Peak hourly rate of the night (sampled every 15 min)
     val nightCurve by produceState<List<Triple<Instant, Double, Pair<Double, Double>>>>(emptyList(), date, where, selected) {
         value = withContext(Dispatchers.Default) {
-            val occ = selected?.let { c -> MeteorShowers.byCode(c)?.let { s -> MeteorShowers.occurrence(s, date.year).let { o -> if (kotlin.math.abs(o.peak.epochSecond - ctx.instant.epochSecond) > 200L * 86400) MeteorShowers.occurrence(s, date.year + 1) else o } } }
+            // Nearest occurrence (previous, this or next year) to the selected date.
+            val occ = selected?.let { c -> MeteorShowers.byCode(c)?.let { s -> listOf(-1, 0, 1).map { MeteorShowers.occurrence(s, date.year + it) }.minBy { kotlin.math.abs(it.peak.epochSecond - ctx.instant.epochSecond) } } }
             val out = ArrayList<Triple<Instant, Double, Pair<Double, Double>>>()
             var t = ns
             while (t.isBefore(ne)) {

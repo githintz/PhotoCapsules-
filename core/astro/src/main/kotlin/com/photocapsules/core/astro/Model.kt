@@ -9,7 +9,10 @@ data class GeoPoint(val latitude: Double, val longitude: Double, val elevationM:
         require(latitude in -90.0..90.0) { "latitude $latitude" }
         require(longitude.isFinite()) { "longitude" }
     }
-    internal fun toObserver() = io.github.cosinekitty.astronomy.Observer(latitude, normLon(longitude), elevationM.coerceIn(-500.0, 100_000.0))
+    internal fun toObserver() = io.github.cosinekitty.astronomy.Observer(latitude, normLon(longitude), safeElevation)
+
+    /** Elevation sanitised for the ephemeris engine: non-finite → 0, clamped to its valid range. */
+    private val safeElevation: Double get() = if (elevationM.isFinite()) elevationM.coerceIn(-500.0, 100_000.0) else 0.0
 
     /**
      * Observer used for rise/set searches. USNO/PhotoPills convention: fixed 34′ refraction and no dependence
@@ -17,7 +20,7 @@ data class GeoPoint(val latitude: Double, val longitude: Double, val elevationM:
      * visible horizon) is applied separately as horizon dip.
      */
     internal fun riseSetObserver(horizonHeightM: Double) =
-        io.github.cosinekitty.astronomy.Observer(latitude, normLon(longitude), horizonHeightM.coerceIn(0.0, 100_000.0))
+        io.github.cosinekitty.astronomy.Observer(latitude, normLon(longitude), if (horizonHeightM.isFinite()) horizonHeightM.coerceIn(0.0, 100_000.0) else 0.0)
     private fun normLon(l: Double): Double { var x = (l + 180.0) % 360.0; if (x < 0) x += 360.0; return x - 180.0 }
 }
 

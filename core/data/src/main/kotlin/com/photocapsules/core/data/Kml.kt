@@ -29,7 +29,10 @@ object Kml {
         return clean.toString().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
     }
 
-    private fun coords(lon: Double, lat: Double, alt: Double?) = if (alt != null) "$lon,$lat,$alt" else "$lon,$lat"
+    /** Plain decimal notation (no exponent), as KML expects. */
+    private fun num(v: Double): String = if (!v.isFinite()) "0" else java.math.BigDecimal(v).setScale(9, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+
+    private fun coords(lon: Double, lat: Double, alt: Double?) = if (alt != null) "${num(lon)},${num(lat)},${num(alt)}" else "${num(lon)},${num(lat)}"
 
     fun toKml(state: LibraryState, documentName: String = "PhotoCapsules"): String = buildString {
         append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -39,7 +42,7 @@ object Kml {
             append("<description>${esc(p.notes)}</description>\n")
             append("<TimeStamp><when>${Instant.ofEpochMilli(p.epochMillis)}</when></TimeStamp>\n")
             append("<ExtendedData>\n")
-            fun data(k: String, v: Any?) { if (v != null) append("<Data name=\"$NS_PC:$k\"><value>${esc(v.toString())}</value></Data>\n") }
+            fun data(k: String, v: Any?) { if (v != null) append("<Data name=\"$NS_PC:$k\"><value>${esc(if (v is Double) num(v) else v.toString())}</value></Data>\n") }
             data("type", "plan"); data("id", p.id); data("epochMillis", p.epochMillis); data("zoneId", p.zoneId)
             data("redAltitude", p.redPin.altitudeM); data("redOffset", p.redPin.offsetM)
             p.blackPin?.let { data("blackLat", it.latitude); data("blackLon", it.longitude); data("blackAltitude", it.altitudeM); data("blackOffset", it.offsetM) }
@@ -80,7 +83,7 @@ object Kml {
 
     fun parseKml(input: InputStream): LibraryState {
         val f = DocumentBuilderFactory.newInstance().apply {
-            isNamespaceAware = false
+            isNamespaceAware = true
             // Hardening against XXE
             setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
             setFeature("http://xml.org/sax/features/external-general-entities", false)
@@ -88,34 +91,36 @@ object Kml {
             isExpandEntityReferences = false
         }
         val doc = f.newDocumentBuilder().parse(input)
-        val placemarks = doc.getElementsByTagName("Placemark")
+        // Namespace-aware lookups so both <Placemark> and prefixed <kml:Placemark> documents import.
+        val placemarks = doc.getElementsByTagNameNS("*", "Placemark")
         val plans = ArrayList<Plan>(); val pois = ArrayList<PointOfInterest>()
         for (i in 0 until placemarks.length) {
             val pm = placemarks.item(i) as org.w3c.dom.Element
-            fun text(tag: String): String? = pm.getElementsByTagName(tag).let { if (it.length > 0) it.item(0).textContent.trim() else null }
+            fun text(tag: String): String? = pm.getElementsByTagNameNS("*", tag).let { if (it.length > 0) it.item(0).textContent.trim() else null }
             val coords = text("coordinates")?.split(Regex("[,\\s]+"))?.filter { it.isNotBlank() } ?: continue
             if (coords.size < 2) continue
-            val lon = coords[0].toDoubleOrNull() ?: continue
-            val lat = coords[1].toDoubleOrNull() ?: continue
+            val lon = coords[0].toDoubleOrNull()?.takeIf { it.isFinite() } ?: continue
+            val lat = coords[1].toDoubleOrNull()?.takeIf { it.isFinite() } ?: continue
             if (lat !in -90.0..90.0 || lon !in -180.0..180.0) continue
-            val alt = coords.getOrNull(2)?.toDoubleOrNull()
+            val alt = coords.getOrNull(2)?.toDoubleOrNull()?.takeIf { it.isFinite() }
             val data = HashMap<String, String>()
-            val dataNodes = pm.getElementsByTagName("Data")
+            val dataNodes = pm.getElementsByTagNameNS("*", "Data")
             for (j in 0 until dataNodes.length) {
                 val d = dataNodes.item(j) as org.w3c.dom.Element
-                val v = d.getElementsByTagName("value").let { if (it.length > 0) it.item(0).textContent else "" }
+                val v = d.getElementsByTagNameNS("*", "value").let { if (it.length > 0) it.item(0).textContent else "" }
                 data[d.getAttribute("name").removePrefix("$NS_PC:")] = v
             }
+            fun fnum(k: String): Double? = data[k]?.toDoubleOrNull()?.takeIf { it.isFinite() }
             val name = text("name") ?: "Imported"
             val notes = text("description") ?: ""
             if (data["type"] == "plan") {
                 val when_ = data["epochMillis"]?.toLongOrNull() ?: text("when")?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() } ?: continue
-                val black = data["blackLat"]?.toDoubleOrNull()?.let { bl ->
-                    data["blackLon"]?.toDoubleOrNull()?.let { PinState(bl, it, data["blackAltitude"]?.toDoubleOrNull(), data["blackOffset"]?.toDoubleOrNull() ?: 0.0) }
+                val black = fnum("blackLat")?.takeIf { it in -90.0..90.0 }?.let { bl ->
+                    fnum("blackLon")?.takeIf { it in -180.0..180.0 }?.let { PinState(bl, it, fnum("blackAltitude"), fnum("blackOffset") ?: 0.0) }
                 }
                 plans.add(Plan(
                     id = data["id"] ?: LibraryRepository.newId(), name = name,
-                    redPin = PinState(lat, lon, data["redAltitude"]?.toDoubleOrNull() ?: alt, data["redOffset"]?.toDoubleOrNull() ?: 0.0),
+                    redPin = PinState(lat, lon, fnum("redAltitude") ?: alt, fnum("redOffset") ?: 0.0),
                     blackPin = black, epochMillis = when_, zoneId = data["zoneId"] ?: "UTC", notes = notes,
                 ))
             } else {

@@ -114,7 +114,7 @@ private fun MoonInfo() {
     }
     val series = rememberDaySeries(ctx)
     Card {
-        Column(Modifier.fillMaxWidth().padding(12.dp).pointerInput(ctx.instant) {
+        Column(Modifier.fillMaxWidth().padding(12.dp).pointerInput(Unit) {
             var acc = 0f
             detectHorizontalDragGestures(onDragEnd = { acc = 0f }) { _, dx ->
                 acc += dx
@@ -166,7 +166,8 @@ private fun MoonInfo() {
     Card {
         val nextRise = DayEvents.nextRiseSet(SkyBody.MOON, true, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)
         val nextSet = DayEvents.nextRiseSet(SkyBody.MOON, false, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)
-        if (info.position.altitude > 0) ValueRow("Time to set", nextSet?.let { Format.duration((it.time.epochSecond - ctx.instant.epochSecond).toDouble(), false) } ?: "—")
+        val up = nextSet != null && (nextRise == null || nextSet.time < nextRise.time)
+        if (up) ValueRow("Time to set", Format.duration((nextSet!!.time.epochSecond - ctx.instant.epochSecond).toDouble(), false))
         else ValueRow("Time to rise", nextRise?.let { Format.duration((it.time.epochSecond - ctx.instant.epochSecond).toDouble(), false) } ?: "—")
         ValueRow("Angular diameter", String.format(Locale.US, "%.4f°", info.position.angularDiameterDeg))
         ValueRow("Age", String.format(Locale.US, "%.1f days", info.ageDays))

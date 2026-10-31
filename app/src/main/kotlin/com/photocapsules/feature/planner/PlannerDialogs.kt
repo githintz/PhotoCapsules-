@@ -118,7 +118,7 @@ fun FindDialog(m: PlannerModel, mapCenter: () -> LatLon?, onPickWithAr: () -> Un
                     DatePickerDialog(ctx, { _, y, mo, d -> start = z.withYear(y).withMonth(mo + 1).withDayOfMonth(d).toLocalDate().atStartOfDay(m.zone).toInstant() }, z.year, z.monthValue - 1, z.dayOfMonth).show()
                 })
                 ValueRow("Date range", ranges[rangeIdx].first + " (to " + Fmt.date(start.plusSeconds(ranges[rangeIdx].second * 86400), m.zone) + ")", onClick = { edit = "range" })
-                ValueRow("Azimuth", String.format(Locale.US, "%.2f° ± %.1f°", az, azTol), onClick = { edit = "az" })
+                ValueRow("Azimuth", Fmt.az(az, 2) + String.format(Locale.US, " ± %.1f°", azTol), onClick = { edit = "az" })
                 ValueRow("Azimuth tolerance", String.format(Locale.US, "± %.1f°", azTol), onClick = { edit = "azTol" })
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Elevation", color = Palette.Text, modifier = Modifier.weight(1f).padding(start = 14.dp))
@@ -152,7 +152,7 @@ fun FindDialog(m: PlannerModel, mapCenter: () -> LatLon?, onPickWithAr: () -> Un
                         Row(Modifier.fillMaxWidth().clickable { m.instant = r.time; job?.cancel(); onDismiss() }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(Fmt.dateTime(r.time, m.zone), color = Palette.Text, fontSize = 13.sp)
-                                Text(String.format(Locale.US, "az %.2f° · el %.2f° · %s", r.azimuth, r.altitude, r.lightType.label), color = Palette.TextDim, fontSize = 11.sp)
+                                Text("az " + Fmt.az(r.azimuth, 2) + String.format(Locale.US, " · el %.2f° · %s", r.altitude, r.lightType.label), color = Palette.TextDim, fontSize = 11.sp)
                             }
                             r.moonIllumination?.let { Text(Fmt.pct(it), color = Palette.Moon, fontSize = 12.sp) }
                         }
@@ -174,7 +174,10 @@ fun FindDialog(m: PlannerModel, mapCenter: () -> LatLon?, onPickWithAr: () -> Un
     )
     when (edit) {
         "range" -> ChoiceDialog("Date range", ranges, { it.first }, ranges[rangeIdx], { edit = null }) { rangeIdx = ranges.indexOf(it) }
-        "az" -> NumberDialog("Azimuth", az, "°", 0.0, 360.0, false, { edit = null }) { az = it }
+        // Entered in the reference chosen in Settings (true or magnetic north); searched in true azimuth.
+        "az" -> NumberDialog(if (Fmt.magneticAzimuths) "Azimuth (magnetic)" else "Azimuth (true north)", if (Fmt.magneticAzimuths) com.photocapsules.core.astro.normalizeDegrees(az - Fmt.declination) else az, "°", 0.0, 360.0, false, { edit = null }) {
+            az = if (Fmt.magneticAzimuths) com.photocapsules.core.astro.normalizeDegrees(it + Fmt.declination) else it
+        }
         "azTol" -> NumberDialog("Azimuth tolerance", azTol, "°", 0.0, 45.0, false, { edit = null }) { azTol = it }
         "alt" -> NumberDialog("Elevation", alt, "°", -5.0, 90.0, true, { edit = null }) { alt = it }
         "altTol" -> NumberDialog("Elevation tolerance", altTol, "°", 0.0, 30.0, false, { edit = null }) { altTol = it }
@@ -188,13 +191,17 @@ fun LoadDialog(m: PlannerModel, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     var sub by remember { mutableStateOf<String?>(null) }
     val repo = PhotoCapsulesApp.instance.library
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    // The Photo Picker strips GPS EXIF, so use the document picker and (on Android 10+) request the original
+    // file with ACCESS_MEDIA_LOCATION granted.
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            val ll = runCatching { ctx.contentResolver.openInputStream(uri)!!.use { ExifInterface(it).latLong } }.getOrNull()
-            if (ll != null) { m.moveRed(LatLon(ll[0], ll[1])); m.centerRequest++ } else Toast.makeText(ctx, "This photo has no GPS location", Toast.LENGTH_LONG).show()
+            val ll = readPhotoLatLong(ctx, uri)
+            if (ll != null) { m.moveRed(LatLon(ll[0], LatLon.normalizeLongitude(ll[1]))); m.redCustomAltitude = null; m.centerRequest++ }
+            else Toast.makeText(ctx, "This photo has no GPS location (or the location was removed when it was shared)", Toast.LENGTH_LONG).show()
         }
         onDismiss()
     }
+    val mediaPerms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { photoPicker.launch(arrayOf("image/*")) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Load") },
@@ -204,7 +211,13 @@ fun LoadDialog(m: PlannerModel, onDismiss: () -> Unit) {
                 Opt("Plan") { sub = "plan" }
                 Opt("Point of Interest") { sub = "poi" }
                 Opt("Latitude / longitude") { sub = "coords" }
-                Opt("Geotagged photo") { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                Opt("Geotagged photo") {
+                    val perms = buildList {
+                        if (android.os.Build.VERSION.SDK_INT >= 29) add(android.Manifest.permission.ACCESS_MEDIA_LOCATION)
+                        if (android.os.Build.VERSION.SDK_INT >= 33) add(android.Manifest.permission.READ_MEDIA_IMAGES) else add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                    }
+                    mediaPerms.launch(perms.toTypedArray())
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
@@ -221,6 +234,17 @@ fun LoadDialog(m: PlannerModel, onDismiss: () -> Unit) {
             ChoiceDialog("Points of Interest", pois, { it.name }, null, { sub = null }) { p -> m.moveRed(LatLon(p.latitude, p.longitude)); m.redCustomAltitude = p.altitudeM; m.centerRequest++; onDismiss() }
         }
     }
+}
+
+/** Reads latitude/longitude from a photo's EXIF, asking MediaStore for the unredacted original when possible. */
+fun readPhotoLatLong(ctx: Context, uri: android.net.Uri): DoubleArray? {
+    fun read(u: android.net.Uri) = runCatching { ctx.contentResolver.openInputStream(u)!!.use { ExifInterface(it).latLong } }.getOrNull()
+    if (android.os.Build.VERSION.SDK_INT >= 29) {
+        // Document URIs from the media provider can be mapped to a MediaStore URI and opened as the original.
+        val mediaUri = runCatching { android.provider.MediaStore.getMediaUri(ctx, uri) }.getOrNull() ?: uri.takeIf { it.authority == android.provider.MediaStore.AUTHORITY }
+        if (mediaUri != null) runCatching { read(android.provider.MediaStore.setRequireOriginal(mediaUri)) }.getOrNull()?.let { return it }
+    }
+    return read(uri)
 }
 
 @Composable
@@ -248,7 +272,7 @@ fun SaveDialog(m: PlannerModel, onDismiss: () -> Unit) {
             repo.upsertPlan(m.toPlan(p.id, p.name, p.notes).copy(createdMillis = p.createdMillis, photoUris = p.photoUris)); Toast.makeText(ctx, "Plan updated", Toast.LENGTH_SHORT).show(); onDismiss()
         }
         "poi" -> TextInputDialog("Point of Interest name", "My location", { sub = null }) { name ->
-            repo.upsertPoi(PointOfInterest(LibraryRepository.newId(), name, m.red.latitude, m.red.longitude, m.redTerrain)); Toast.makeText(ctx, "Point of interest saved", Toast.LENGTH_SHORT).show(); onDismiss()
+            repo.upsertPoi(PointOfInterest(LibraryRepository.newId(), name, m.red.latitude, m.red.longitude, m.redCustomAltitude ?: m.redTerrain)); Toast.makeText(ctx, "Point of interest saved", Toast.LENGTH_SHORT).show(); onDismiss()
         }
     }
 }
@@ -450,7 +474,7 @@ fun ToolSettingsDialog(m: PlannerModel, onDismiss: () -> Unit) {
                         ValueRow("Composition grid", m.droneGrid.label, onClick = { edit = "grid" })
                     }
                     PillRow(listOf("Landscape", "Portrait"), m.orientation.ordinal) { m.orientation = Orientation.entries[it] }
-                    ValueRow("Azimuth", if (m.azimuthAtBlackPin) "Aligned with Black Pin" else Fmt.deg(m.toolAzimuth), onClick = { edit = "az" })
+                    ValueRow("Azimuth", if (m.azimuthAtBlackPin) "Aligned with Black Pin" else Fmt.az(m.toolAzimuth), onClick = { edit = "az" })
                     if (m.black != null) Check("Align with Black Pin", m.azimuthAtBlackPin) { m.azimuthAtBlackPin = it }
                     Text("Tip: drag the black handles on the map to change direction (centre) and focal length (edge).", color = Palette.TextDim, fontSize = 12.sp)
                 }
@@ -467,7 +491,9 @@ fun ToolSettingsDialog(m: PlannerModel, onDismiss: () -> Unit) {
         "tc" -> ChoiceDialog("Teleconverter", listOf(1.0, 1.4, 1.7, 2.0), { if (it == 1.0) "None" else "×$it" }, m.teleconverter, { edit = null }) { m.teleconverter = it }
         "aperture" -> NumberDialog("Aperture", m.aperture, "f/", 0.5, 128.0, false, { edit = null }) { m.aperture = it }
         "focus" -> NumberDialog("Focus distance", Fmt.toDisplay(m.focusM, units), Fmt.lenUnit(units), 0.05, 1e6, false, { edit = null }) { m.focusM = Fmt.fromDisplay(it, units); m.focusAtBlackPin = false }
-        "az" -> NumberDialog("Azimuth", m.toolAzimuth, "°", 0.0, 360.0, false, { edit = null }) { m.toolAzimuth = it; m.azimuthAtBlackPin = false }
+        "az" -> NumberDialog(if (Fmt.magneticAzimuths) "Azimuth (magnetic)" else "Azimuth (true north)", if (Fmt.magneticAzimuths) com.photocapsules.core.astro.normalizeDegrees(m.toolAzimuth - Fmt.declination) else m.toolAzimuth, "°", 0.0, 360.0, false, { edit = null }) {
+            m.toolAzimuth = if (Fmt.magneticAzimuths) com.photocapsules.core.astro.normalizeDegrees(it + Fmt.declination) else it; m.azimuthAtBlackPin = false
+        }
         "smsize" -> NumberDialog("Sun/Moon diameter", Fmt.toDisplay(m.sunMoonSizeM, units), Fmt.lenUnit(units), 0.01, 1e6, false, { edit = null }) { m.sunMoonSizeM = Fmt.fromDisplay(it, units) }
         "dalt" -> NumberDialog("Drone altitude", Fmt.toDisplay(m.droneAltitudeM, units), Fmt.lenUnit(units), 1.0, 10000.0, false, { edit = null }) { m.droneAltitudeM = Fmt.fromDisplay(it, units) }
         "grid" -> ChoiceDialog("Composition grid", CompositionGrid.entries, { it.label }, m.droneGrid, { edit = null }) { m.droneGrid = it }

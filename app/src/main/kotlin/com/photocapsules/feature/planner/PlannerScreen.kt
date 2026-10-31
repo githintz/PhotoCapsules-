@@ -87,7 +87,8 @@ import java.time.ZoneId
 
 private data class DayKey(val date: java.time.LocalDate, val zone: ZoneId, val lat: Double, val lon: Double, val alt: Double, val horizon: Double)
 private data class DayData(val panel: PanelData, val sunPath: List<Pair<java.time.Instant, com.photocapsules.core.astro.BodyPosition>>,
-                           val moonPath: List<Pair<java.time.Instant, com.photocapsules.core.astro.BodyPosition>>, val events: List<java.time.Instant>)
+                           val moonPath: List<Pair<java.time.Instant, com.photocapsules.core.astro.BodyPosition>>, val events: List<java.time.Instant>,
+                           val gcRise: Double?, val gcSet: Double?)
 
 /** The Planner model survives navigation (like PhotoPills keeps the planner state). */
 private var savedModel: PlannerModel? = null
@@ -124,15 +125,15 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
     }
 
     // Terrain elevation + time zone lookups (debounced) when pins move.
-    LaunchedEffect(m.red, settings.onlineElevation) {
+    LaunchedEffect(m.red, settings.elevationProvider) {
         delay(400)
-        if (settings.onlineElevation && m.redCustomAltitude == null) OnlineServices.elevation(m.red.latitude, m.red.longitude)?.let { m.redTerrain = it }
+        if ( m.redCustomAltitude == null) OnlineServices.elevation(m.red.latitude, m.red.longitude)?.let { m.redTerrain = it }
         if (m.zoneAuto) OnlineServices.timeZone(m.red.latitude, m.red.longitude)?.let { id -> runCatching { ZoneId.of(id) }.getOrNull()?.let { m.zone = it } }
     }
-    LaunchedEffect(m.black, settings.onlineElevation) {
+    LaunchedEffect(m.black, settings.elevationProvider) {
         val b = m.black ?: return@LaunchedEffect
         delay(400)
-        if (settings.onlineElevation && m.blackCustomAltitude == null) OnlineServices.elevation(b.latitude, b.longitude)?.let { m.blackTerrain = it }
+        if ( m.blackCustomAltitude == null) OnlineServices.elevation(b.latitude, b.longitude)?.let { m.blackTerrain = it }
     }
     LaunchedEffect(m.horizonPin, m.horizonEnabled) {
         val hp = m.horizonPin ?: return@LaunchedEffect
@@ -161,7 +162,9 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
             val local = m.solarEclipse?.let { Eclipses.solarLocal(it, obs) }
             val events = Timeline.events(key.date, key.zone, obs, key.horizon).map { it.time } +
                 Timeline.events(key.date.plusDays(1), key.zone, obs, key.horizon).map { it.time } + Timeline.events(key.date.minusDays(1), key.zone, obs, key.horizon).map { it.time }
-            DayData(PanelData(sd, md, gc, local), DayEvents.path(SkyBody.SUN, s, e, obs, 10.0), DayEvents.path(SkyBody.MOON, s, e, obs, 10.0), events.sorted())
+            val gcRs = MilkyWay.riseSet(s, e, obs)
+            DayData(PanelData(sd, md, gc, local), DayEvents.path(SkyBody.SUN, s, e, obs, 10.0), DayEvents.path(SkyBody.MOON, s, e, obs, 10.0), events.sorted(),
+                gcRs.firstOrNull { it.rising }?.azimuth, gcRs.firstOrNull { !it.rising }?.azimuth)
         }
     }
 
@@ -198,6 +201,7 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
         sunPath = dayData?.sunPath.orEmpty(), moonPath = dayData?.moonPath.orEmpty(),
         light = DayEvents.lightType(m.instant, obs), gc = gc, arch = arch, archCrossings = archInfo?.horizonCrossings.orEmpty(),
         gcVisibleAz = dayData?.panel?.gcVisibility?.firstOrNull()?.start?.azimuth, gcHiddenAz = dayData?.panel?.gcVisibility?.firstOrNull()?.end?.azimuth,
+        gcRiseAz = dayData?.gcRise, gcSetAz = dayData?.gcSet,
         radiant = radiant, radiantPath = radiantPath,
         shadowLengthM = shadowLen, shadowAzimuth = shadowSource?.let { com.photocapsules.core.astro.normalizeDegrees(it.azimuth + 180) },
         solarMap = m.solarMap, lunarEclipse = m.lunarEclipse,

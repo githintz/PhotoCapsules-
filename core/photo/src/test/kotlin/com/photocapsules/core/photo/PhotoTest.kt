@@ -198,7 +198,7 @@ class PhotoTest {
         assertEquals("2.5\"", Format.shutter(2.5))
         assertEquals("30\"", Format.shutter(30.0))
         assertEquals("16m 20s", Format.shutter(980.0))
-        assertEquals("f/2.8", Format.aperture(2.8)); assertEquals("f/16", Format.aperture(16.0))
+        assertEquals("f/2.8", Format.aperture(2.8)); assertEquals("f/16", Format.aperture(16.0)); assertEquals("f/0.95", Format.aperture(0.95))
         assertEquals("∞", Format.distance(Double.POSITIVE_INFINITY, UnitSystem.METRIC))
         assertEquals("3.28 ft", Format.distance(1.0, UnitSystem.IMPERIAL))
         assertEquals("1h 00m 00s", Format.duration(3600.0))

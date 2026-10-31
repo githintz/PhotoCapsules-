@@ -106,7 +106,7 @@ private fun SunInfo() {
     val series = rememberDaySeries(ctx)
 
     Card {
-        Column(Modifier.fillMaxWidth().padding(12.dp).pointerInput(ctx.instant) {
+        Column(Modifier.fillMaxWidth().padding(12.dp).pointerInput(Unit) {
             var acc = 0f
             detectHorizontalDragGestures(onDragEnd = { acc = 0f }) { _, dx ->
                 acc += dx
@@ -135,7 +135,9 @@ private fun SunInfo() {
         val d = day
         val nextRise = DayEvents.nextRiseSet(SkyBody.SUN, true, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)
         val nextSet = DayEvents.nextRiseSet(SkyBody.SUN, false, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)
-        if (pos.altitude > -0.833) ValueRow("Time to set", nextSet?.let { Format.duration((it.time.epochSecond - ctx.instant.epochSecond).toDouble(), false) } ?: "—")
+        // Up if the next set comes before the next rise (independent of refraction thresholds).
+        val up = nextSet != null && (nextRise == null || nextSet.time < nextRise.time)
+        if (up) ValueRow("Time to set", Format.duration((nextSet!!.time.epochSecond - ctx.instant.epochSecond).toDouble(), false))
         else ValueRow("Time to rise", nextRise?.let { Format.duration((it.time.epochSecond - ctx.instant.epochSecond).toDouble(), false) } ?: "—")
         ValueRow("Daylight", d?.let { Format.duration(it.daylightSeconds, false) } ?: "—")
         ValueRow("Azimuth", Fmt.az(pos.azimuth, 2))

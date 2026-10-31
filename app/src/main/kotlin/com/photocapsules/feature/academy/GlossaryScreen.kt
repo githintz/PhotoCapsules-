@@ -23,7 +23,7 @@ private val terms = listOf(
     "Night" to "Sun more than 18° below the horizon: the sky is fully dark.",
     "Galactic Center visibility" to "The Galactic Center (Sgr A*) is above the horizon while the Sun is below −18°.",
     "Moon phase & illumination" to "Phase angle is the Moon–Sun elongation (0° new, 90° first quarter, 180° full, 270° last quarter). Illumination is the lit fraction of the disc.",
-    "Supermoon" to "A full Moon closer than 360,000 km to the Earth's centre.",
+    "Supermoon" to "By default (R. Nolle / timeanddate) a full Moon within 90 % of its perigee: distance ≤ perigee + 10 % of (apogee − perigee) for that orbit. A fixed-distance definition can be chosen in Settings.",
     "Perigee / apogee" to "Closest / farthest point of the Moon's orbit.",
     "Angular diameter" to "Apparent size of the Sun or Moon (≈0.5°). Use it with the Sun/Moon tool to choose a shooting distance: distance = size ÷ (2·tan(diameter/2)), roughly 115 × subject size for the Moon.",
     "Shadow ratio" to "Shadow length divided by object height = 1/tan(elevation).",

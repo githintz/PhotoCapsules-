@@ -36,6 +36,20 @@ class DataTest {
         assertEquals(null, back.pois[1].altitudeM)
     }
 
+    @Test fun nonFiniteAndPrefixedAndSmallNumbers() {
+        val kml = """<?xml version="1.0"?><kml:kml xmlns:kml="http://www.opengis.net/kml/2.2"><kml:Document>
+            <kml:Placemark><kml:name>Prefixed</kml:name><kml:Point><kml:coordinates>-0.0001,51.4779,NaN</kml:coordinates></kml:Point></kml:Placemark>
+            </kml:Document></kml:kml>"""
+        val s = Kml.parse(kml.toByteArray())
+        assertEquals(1, s.pois.size); assertEquals(null, s.pois[0].altitudeM); assertEquals(-0.0001, s.pois[0].longitude)
+        val plan = Plan("x", "p", PinState(0.00001, -0.0002, 1e-4, 0.0), PinState(95.0, 0.0), 0L, "UTC")
+        val text = Kml.toKml(LibraryState(plans = listOf(plan)))
+        assertTrue(!text.contains("E-"), text)
+        assertTrue(text.contains("-0.0002,0.00001,0.0001"), text)
+        // Out-of-range Black Pin is dropped instead of crashing later
+        assertEquals(null, Kml.parse(text.toByteArray()).plans.single().blackPin)
+    }
+
     @Test fun xxeIsRejected() {
         val evil = """<?xml version="1.0"?><!DOCTYPE kml [<!ENTITY x SYSTEM "file:///etc/passwd">]><kml><Document><Placemark><name>&x;</name><Point><coordinates>0,0</coordinates></Point></Placemark></Document></kml>"""
         val r = runCatching { Kml.parse(evil.toByteArray()) }

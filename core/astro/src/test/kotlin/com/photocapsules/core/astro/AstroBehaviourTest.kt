@@ -121,6 +121,13 @@ class AstroBehaviourTest {
         assertNotNull(DayEvents.moon(LocalDate.of(2026, 6, 1), ZoneOffset.UTC, GeoPoint(40.0, -3.0, -2000.0)))
     }
 
+    @Test fun nonFiniteElevationsAreSanitised() {
+        val d = LocalDate.of(2026, 6, 1)
+        assertNotNull(DayEvents.sun(d, ZoneOffset.UTC, GeoPoint(40.0, 0.0, Double.NaN)).sunrise)
+        assertNotNull(DayEvents.sun(d, ZoneOffset.UTC, GeoPoint(40.0, 0.0, 10.0), horizonHeightM = Double.NaN).sunrise)
+        assertNotNull(DayEvents.moon(d, ZoneOffset.UTC, GeoPoint(40.0, 0.0, Double.POSITIVE_INFINITY)))
+    }
+
     @Test fun riseSetIndependentOfGroundElevation() {
         // USNO/PhotoPills convention: fixed 34′ refraction regardless of the observer's ground altitude.
         val low = DayEvents.sun(LocalDate.of(2026, 6, 1), ZoneOffset.UTC, GeoPoint(-0.18, -78.47, 0.0)).sunrise!!.time
@@ -131,7 +138,7 @@ class AstroBehaviourTest {
     @Test fun comaeBerenicidsIncludesDlmRegion() {
         assertNull(MeteorShowers.byCode("DLM"))
         val com = MeteorShowers.occurrence(MeteorShowers.byCode("COM")!!, 2026)
-        assertEquals(LocalDate.of(2027, 2, 4), com.activityEnd)
+        assertEquals(LocalDate.of(2027, 1, 31), com.activityEnd) // IMO 2026: detectable until Jan 31
         // Flat profile: same ZHR on 5 Jan as at the nominal maximum
         assertEquals(3.0, MeteorShowers.zhrAt(com, Instant.parse("2027-01-05T00:00:00Z")), 1e-9)
     }

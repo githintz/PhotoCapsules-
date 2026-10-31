@@ -141,6 +141,15 @@ private fun PlanDetailDialog(plan: Plan, onDismiss: () -> Unit, onOpen: () -> Un
     var current by remember { mutableStateOf(plan) }
     var rename by remember { mutableStateOf(false) }
     var notes by remember { mutableStateOf(false) }
+    var photos by remember { mutableStateOf(false) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) {
+            // Keep access to the chosen photos across restarts.
+            uris.forEach { u -> runCatching { ctx.contentResolver.takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION) } }
+            current = current.copy(photoUris = (current.photoUris + uris.map { it.toString() }).distinct(), updatedMillis = System.currentTimeMillis())
+            repo.upsertPlan(current)
+        }
+    }
     val zone = runCatching { ZoneId.of(current.zoneId) }.getOrDefault(ZoneId.systemDefault())
     val t = Instant.ofEpochMilli(current.epochMillis)
     val where = GeoPoint(current.redPin.latitude, current.redPin.longitude, (current.redPin.altitudeM ?: 0.0) + current.redPin.offsetM)
@@ -163,11 +172,31 @@ private fun PlanDetailDialog(plan: Plan, onDismiss: () -> Unit, onOpen: () -> Un
                 Row {
                     TextButton(onClick = { addCalendarAlert(ctx, current.name, t, where.latitude, where.longitude) }) { Text("Calendar") }
                     TextButton(onClick = { openInMaps(ctx, where.latitude, where.longitude, current.name) }) { Text("Maps") }
+                    TextButton(onClick = { photos = true }) { Text("Photos (${current.photoUris.size})") }
                 }
             }
         },
         confirmButton = { TextButton(onClick = onOpen) { Text("Open in Planner") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+    if (photos) AlertDialog(
+        onDismissRequest = { photos = false }, title = { Text("Photos") },
+        text = {
+            Column {
+                if (current.photoUris.isEmpty()) Text("No photos attached yet.", color = Palette.TextDim)
+                current.photoUris.forEachIndexed { i, u ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Photo ${i + 1}", color = Palette.Accent, modifier = Modifier.weight(1f).clickable {
+                            runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(u), "image/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
+                                .onFailure { Toast.makeText(ctx, "Cannot open this photo", Toast.LENGTH_SHORT).show() }
+                        }.padding(vertical = 8.dp))
+                        TextButton(onClick = { current = current.copy(photoUris = current.photoUris - u); repo.upsertPlan(current) }) { Text("Remove") }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { photoPicker.launch(arrayOf("image/*")) }) { Text("Add photos") } },
+        dismissButton = { TextButton(onClick = { photos = false }) { Text("Close") } },
     )
     if (rename) TextInputDialog("Plan name", current.name, { rename = false }) { n -> current = current.copy(name = n, updatedMillis = System.currentTimeMillis()); repo.upsertPlan(current) }
     if (notes) TextInputDialog("Notes", current.notes, { notes = false }, multiline = true) { n -> current = current.copy(notes = n, updatedMillis = System.currentTimeMillis()); repo.upsertPlan(current) }
@@ -298,7 +327,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             SectionTitle("Map & data")
             Card {
                 SwitchRow("Show my position on the map", s.showMyLocation) { v -> store.update { it.copy(showMyLocation = v) } }
-                SwitchRow("Online terrain elevation (Open-Meteo)", s.onlineElevation) { v -> store.update { it.copy(onlineElevation = v) } }
+                ValueRow("Elevation service", s.elevationProvider.label, onClick = { dialog = "elev" })
             }
             SectionTitle("About")
             Card { ValueRow("Version", com.photocapsules.BuildConfig.VERSION_NAME) }
@@ -311,6 +340,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         "coord" -> ChoiceDialog("Coordinate format", CoordinateFormat.entries, { when (it) { CoordinateFormat.DDD -> "Decimal degrees (DDD)"; CoordinateFormat.DMM -> "Degrees decimal minutes (DMM)"; CoordinateFormat.DMS -> "Degrees minutes seconds (DMS)" } }, s.coordinateFormat, { dialog = null }) { v -> store.update { it.copy(coordinateFormat = v) } }
         "az" -> ChoiceDialog("Azimuth reference", AzimuthReference.entries, { it.label }, s.azimuthReference, { dialog = null }) { v -> store.update { it.copy(azimuthReference = v) } }
         "height" -> NumberDialog("Device height", Fmt.toDisplay(s.deviceHeightM, s.units), Fmt.lenUnit(s.units), 0.1, 10000.0, false, { dialog = null }) { v -> store.update { it.copy(deviceHeightM = Fmt.fromDisplay(v, s.units)) } }
+        "elev" -> ChoiceDialog("Elevation service", com.photocapsules.data.ElevationProvider.entries, { it.label }, s.elevationProvider, { dialog = null }) { v -> store.update { it.copy(elevationProvider = v) } }
         "super" -> ChoiceDialog("Supermoon definition", listOf(0.0, 360_000.0, 361_524.0, 362_000.0), {
             if (it == 0.0) "Within 90 % of perigee (Nolle, timeanddate)" else String.format(java.util.Locale.US, "Full Moon closer than %,.0f km", it)
         }, s.supermoonKm, { dialog = null }) { v -> store.update { it.copy(supermoonKm = v) } }

@@ -47,6 +47,8 @@ data class MoonDay(
 
 /** Daily Sun and Moon events for a local calendar date. */
 object DayEvents {
+    private fun safeHeight(h: Double) = if (h.isFinite()) h.coerceIn(0.0, 100_000.0) else 0.0
+
 
     /** [start, end) instants of a local calendar day (handles 23/25 h DST days). */
     fun dayWindow(date: LocalDate, zone: ZoneId): Pair<Instant, Instant> =
@@ -57,7 +59,7 @@ object DayEvents {
         var t = start
         while (t.ut < end.ut) {
             val limit = end.ut - t.ut
-            val found = searchRiseSet(body, where.riseSetObserver(horizonHeightM), direction, t, limit, horizonHeightM.coerceAtLeast(0.0)) ?: break
+            val found = searchRiseSet(body, where.riseSetObserver(horizonHeightM), direction, t, limit, safeHeight(horizonHeightM)) ?: break
             if (found.ut >= end.ut) break
             out.add(found)
             t = found.addDays(1.0 / 1440.0)
@@ -165,13 +167,13 @@ object DayEvents {
 
     /** Next sunrise/sunset/moonrise/moonset after [from] (searching up to [limitDays]). */
     fun nextRiseSet(body: SkyBody, rise: Boolean, from: Instant, where: GeoPoint, limitDays: Double = 2.0, horizonHeightM: Double = 0.0): TimedEvent? {
-        val t = searchRiseSet(Sky.body(body), where.riseSetObserver(horizonHeightM), if (rise) Direction.Rise else Direction.Set, from.toAstroTime(), limitDays, horizonHeightM.coerceAtLeast(0.0))
+        val t = searchRiseSet(Sky.body(body), where.riseSetObserver(horizonHeightM), if (rise) Direction.Rise else Direction.Set, from.toAstroTime(), limitDays, safeHeight(horizonHeightM))
         return t?.let { event(body, it, where) }
     }
 
     /** Previous rise/set before [from]. */
     fun previousRiseSet(body: SkyBody, rise: Boolean, from: Instant, where: GeoPoint, limitDays: Double = 2.0, horizonHeightM: Double = 0.0): TimedEvent? {
-        val t = searchRiseSet(Sky.body(body), where.riseSetObserver(horizonHeightM), if (rise) Direction.Rise else Direction.Set, from.toAstroTime(), -limitDays, horizonHeightM.coerceAtLeast(0.0))
+        val t = searchRiseSet(Sky.body(body), where.riseSetObserver(horizonHeightM), if (rise) Direction.Rise else Direction.Set, from.toAstroTime(), -limitDays, safeHeight(horizonHeightM))
         return t?.let { event(body, it, where) }
     }
 

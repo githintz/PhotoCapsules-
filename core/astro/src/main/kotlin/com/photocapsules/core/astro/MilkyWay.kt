@@ -79,6 +79,13 @@ object MilkyWay {
         return TimedEventLite(t.toInstant(), p.azimuth, p.altitude, open)
     }
 
+    data class RiseSet(val time: Instant, val azimuth: Double, val rising: Boolean)
+
+    /** Galactic Center rise/set events in [start, end] (apparent horizon: 34′ refraction). */
+    fun riseSet(start: Instant, end: Instant, where: GeoPoint): List<RiseSet> =
+        findCrossings(start.toAstroTime(), end.toAstroTime(), 5.0 / 1440.0, listOf(-34.0 / 60.0)) { gcTrueAltitude(it, where) }
+            .map { c -> RiseSet(c.time.toInstant(), Sky.fixedPoint(GC_RA_HOURS, GC_DEC_DEG, c.time, where, refraction = false).azimuth, c.rising) }
+
     /** "Moon energy" bar of PhotoPills: 1 = no moonlight (new Moon or Moon down), 0 = full Moon up. */
     fun darkness(instant: Instant, where: GeoPoint): Double {
         val m = MoonCalc.info(instant, where)

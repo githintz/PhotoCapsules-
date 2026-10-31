@@ -12,6 +12,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
 
 enum class MapType(val label: String) { STANDARD("Standard (OSM)"), TOPO("Topographic"), SATELLITE("Satellite") }
+enum class ElevationProvider(val label: String) {
+    OFF("Off (enter altitudes manually)"), OPEN_METEO("Open-Meteo (Copernicus DEM 90 m)"),
+    SRTM30("OpenTopoData SRTM 30 m"), ASTER30("OpenTopoData ASTER 30 m"),
+}
 enum class AzimuthReference(val label: String) { TRUE_NORTH("True north"), MAGNETIC_NORTH("Magnetic north") }
 
 data class Settings(
@@ -26,7 +30,7 @@ data class Settings(
     val useGyroscope: Boolean = true,
     val showCompassWarning: Boolean = true,
     val showMyLocation: Boolean = true,
-    val onlineElevation: Boolean = true,
+    val elevationProvider: ElevationProvider = ElevationProvider.OPEN_METEO,
     val use24h: Boolean = true,
     /** Supermoon definition: 0 = 90 % of perigee (Nolle/timeanddate), otherwise a fixed distance in km. */
     val supermoonKm: Double = 0.0,
@@ -54,7 +58,7 @@ class SettingsStore(context: Context) {
         useGyroscope = prefs.getBoolean("gyro", true),
         showCompassWarning = prefs.getBoolean("compassWarn", true),
         showMyLocation = prefs.getBoolean("myLoc", true),
-        onlineElevation = prefs.getBoolean("onlineElev", true),
+        elevationProvider = enumOf("elevProvider", if (prefs.getBoolean("onlineElev", true)) ElevationProvider.OPEN_METEO else ElevationProvider.OFF),
         use24h = prefs.getBoolean("use24h", true),
         supermoonKm = prefs.getFloat("supermoonKm", 0f).toDouble(),
     )
@@ -67,7 +71,7 @@ class SettingsStore(context: Context) {
             .putString("coordFmt", s.coordinateFormat.name).putString("azRef", s.azimuthReference.name)
             .putFloat("deviceHeight", s.deviceHeightM.toFloat()).putBoolean("gyro", s.useGyroscope)
             .putBoolean("compassWarn", s.showCompassWarning).putBoolean("myLoc", s.showMyLocation)
-            .putBoolean("onlineElev", s.onlineElevation).putBoolean("use24h", s.use24h)
+            .putString("elevProvider", s.elevationProvider.name).putBoolean("use24h", s.use24h)
             .putFloat("supermoonKm", s.supermoonKm.toFloat())
             .apply()
         _state.value = s
@@ -77,6 +81,7 @@ class SettingsStore(context: Context) {
     /** Pushes settings that core modules / formatters read globally. */
     fun applyGlobals() {
         val s = current
+        OnlineServices.elevationProvider = s.elevationProvider
         com.photocapsules.core.astro.MoonCalendar.supermoonRule =
             if (s.supermoonKm > 0) com.photocapsules.core.astro.SupermoonRule.Distance(s.supermoonKm) else com.photocapsules.core.astro.SupermoonRule.NinetyPercentOfPerigee
         com.photocapsules.ui.components.Fmt.use24h = s.use24h

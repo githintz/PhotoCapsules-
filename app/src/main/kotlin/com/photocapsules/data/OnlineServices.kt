@@ -30,12 +30,26 @@ object OnlineServices {
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     private fun f(v: Double) = String.format(Locale.US, "%.5f", v)
 
-    /** Terrain elevation (m) from Open-Meteo (Copernicus DEM GLO-90). */
+    @Volatile var elevationProvider: ElevationProvider = ElevationProvider.OPEN_METEO
+
+    /** Terrain elevation (m) from the provider chosen in Settings (Open-Meteo GLO-90 or OpenTopoData SRTM/ASTER 30 m). */
     suspend fun elevation(lat: Double, lon: Double): Double? = withContext(Dispatchers.IO) {
-        val key = "${f(lat)},${f(lon)}"
+        val provider = elevationProvider
+        if (provider == ElevationProvider.OFF) return@withContext null
+        val key = "${provider.name}:${f(lat)},${f(lon)}"
         synchronized(elevationCache) { elevationCache[key] }?.let { return@withContext it }
-        val body = get("https://api.open-meteo.com/v1/elevation?latitude=${f(lat)}&longitude=${f(lon)}") ?: return@withContext null
-        val v = runCatching { JSONObject(body).getJSONArray("elevation").getDouble(0) }.getOrNull()?.takeIf { it.isFinite() && it > -500 }
+        val v = when (provider) {
+            ElevationProvider.OPEN_METEO -> get("https://api.open-meteo.com/v1/elevation?latitude=${f(lat)}&longitude=${f(lon)}")
+                ?.let { body -> runCatching { JSONObject(body).getJSONArray("elevation").getDouble(0) }.getOrNull() }
+            ElevationProvider.SRTM30, ElevationProvider.ASTER30 -> {
+                val ds = if (provider == ElevationProvider.SRTM30) "srtm30m" else "aster30m"
+                get("https://api.opentopodata.org/v1/$ds?locations=${f(lat)},${f(lon)}")
+                    ?.let { body -> runCatching { JSONObject(body).getJSONArray("results").getJSONObject(0).getDouble("elevation") }.getOrNull() }
+                    // SRTM covers ±60°; fall back to Open-Meteo elsewhere or on failure.
+                    ?: get("https://api.open-meteo.com/v1/elevation?latitude=${f(lat)}&longitude=${f(lon)}")?.let { body -> runCatching { JSONObject(body).getJSONArray("elevation").getDouble(0) }.getOrNull() }
+            }
+            ElevationProvider.OFF -> null
+        }?.takeIf { it.isFinite() && it > -500 }
         if (v != null) synchronized(elevationCache) { elevationCache[key] = v }
         v
     }

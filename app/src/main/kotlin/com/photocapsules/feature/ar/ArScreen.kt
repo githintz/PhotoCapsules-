@@ -122,7 +122,9 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
     var hasCamera by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
     val camPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasCamera = it }
     val vFov = remember { backCameraVerticalFov(context) }
-    val declination = remember { LocationService.magneticDeclination(where.latitude, where.longitude, where.elevationM, System.currentTimeMillis()) }
+    // The phone's compass error depends on where the phone IS, not on the planned location.
+    val device = remember { LocationService.lastKnown(context)?.let { GeoPoint(it.latitude, it.longitude, if (it.hasAltitude()) it.altitude else 0.0) } ?: where }
+    val declination = remember { LocationService.magneticDeclination(device.latitude, device.longitude, device.elevationM, System.currentTimeMillis()) }
     val store = PhotoCapsulesApp.instance.settings
     var azOffset by remember { mutableStateOf(store.getDouble("ar_azoff", 0.0)) }
     var altOffset by remember { mutableStateOf(store.getDouble("ar_altoff", 0.0)) }
@@ -210,7 +212,7 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
             @Suppress("UNUSED_EXPRESSION") tick
             projHolder[0]?.let { p ->
                 val c = p.center()
-                Text(String.format(Locale.US, "Az %.1f° · El %.1f° · decl. %+.1f°", c.azimuth, c.altitude, declination), color = Color.White, fontSize = 12.sp,
+                Text("Az " + Fmt.az(c.azimuth) + String.format(Locale.US, " · El %.1f° · decl. %+.1f°", c.altitude, declination), color = Color.White, fontSize = 12.sp,
                     modifier = Modifier.background(Color(0x88000000), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
             }
             if (!tracker.available) Text("This device has no compass: AR is not available.", color = Palette.Red)
@@ -238,7 +240,8 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
                 TextButton(onClick = {
                     projHolder[0]?.let { p ->
                         val raw = p.center().let { HorizontalCoord(normalizeDegrees(it.azimuth - azOffset), it.altitude - altOffset) }
-                        val target = Sky.position(SkyBody.SUN, instant, where)
+                        // Calibrate against the real Sun: current time, the phone's own location.
+                        val target = Sky.position(SkyBody.SUN, Instant.now(), device)
                         azOffset = com.photocapsules.core.astro.angleDiff(target.azimuth, raw.azimuth); altOffset = target.altitude - raw.altitude
                         store.putDouble("ar_azoff", azOffset); store.putDouble("ar_altoff", altOffset)
                     }
@@ -247,7 +250,7 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
                 TextButton(onClick = {
                     projHolder[0]?.let { p ->
                         val raw = p.center().let { HorizontalCoord(normalizeDegrees(it.azimuth - azOffset), it.altitude - altOffset) }
-                        val target = Sky.position(SkyBody.MOON, instant, where)
+                        val target = Sky.position(SkyBody.MOON, Instant.now(), device)
                         azOffset = com.photocapsules.core.astro.angleDiff(target.azimuth, raw.azimuth); altOffset = target.altitude - raw.altitude
                         store.putDouble("ar_azoff", azOffset); store.putDouble("ar_altoff", altOffset)
                     }
@@ -365,13 +368,19 @@ private fun DrawScope.drawBodyPath(p: Projector, path: List<Pair<Instant, com.ph
     riseSet.forEachIndexed { i, az -> polyline(p, listOf(HorizontalCoord(az, -10.0), HorizontalCoord(az, 5.0)), if (i == 0) color else color.copy(alpha = 0.6f), 6f) }
 }
 
+/** Screen angle (clockwise from screen-up) of the local zenith direction at a sky position (accounts for phone roll). */
+private fun zenithScreenAngle(p: Projector, az: Double, alt: Double, at: Offset): Float {
+    val up = p.project(az, (alt + 1.0).coerceAtMost(89.9)) ?: return 0f
+    return Math.toDegrees(kotlin.math.atan2((up.x - at.x).toDouble(), -(up.y - at.y).toDouble())).toFloat()
+}
+
 private fun DrawScope.drawSunMoon(p: Projector, sky: ArSky, zone: java.time.ZoneId) {
     drawBodyPath(p, sky.sunPath, sky.sunRiseSet, zone, Palette.Sun)
     drawBodyPath(p, sky.moonPath, sky.moonRiseSet, zone, Palette.Moon)
     p.project(sky.sun.azimuth, sky.sun.altitude)?.let { drawCircle(Palette.Sun, 26f, it); text("Sun", it + Offset(30f, 0f), Palette.Sun) }
     val m = sky.moon
     p.project(m.position.azimuth, m.position.altitude)?.let { o ->
-        drawMoon(m.phaseAngle, m.brightLimbFromZenith, Color.Transparent, o, 26f)
+        drawMoon(m.phaseAngle, m.brightLimbFromZenith + zenithScreenAngle(p, m.position.azimuth, m.position.altitude, o), Color.Transparent, o, 26f)
         text("Moon ${Fmt.pct(m.illumination)}", o + Offset(30f, 0f), Palette.Moon)
     }
 }
@@ -391,7 +400,7 @@ private fun DrawScope.drawNight(p: Projector, sky: ArSky, zone: java.time.ZoneId
     }
     drawBodyPath(p, sky.moonPath, sky.moonRiseSet, zone, Palette.Moon)
     val m = sky.moon
-    p.project(m.position.azimuth, m.position.altitude)?.let { drawMoon(m.phaseAngle, m.brightLimbFromZenith, Color.Transparent, it, 24f) }
+    p.project(m.position.azimuth, m.position.altitude)?.let { drawMoon(m.phaseAngle, m.brightLimbFromZenith + zenithScreenAngle(p, m.position.azimuth, m.position.altitude, it), Color.Transparent, it, 24f) }
     for ((name, selected, rp) in sky.radiants) p.project(rp.azimuth, rp.altitude)?.let {
         drawCircle(if (selected) Palette.Accent else Color(0xFFEC407A), if (selected) 16f else 9f, it, style = Stroke(4f))
         text(name, it + Offset(18f, 0f), if (selected) Palette.Accent else Color(0xFFEC407A), if (selected) 30f else 22f)

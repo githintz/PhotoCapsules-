@@ -45,6 +45,7 @@ data class PlannerFrame(
     val arch: List<HorizontalCoord>,
     val archCrossings: List<Double>,
     val gcVisibleAz: Double?, val gcHiddenAz: Double?,
+    val gcRiseAz: Double?, val gcSetAz: Double?,
     val radiant: HorizontalCoord?,
     val radiantPath: List<HorizontalCoord>,
     val shadowLengthM: Double?,
@@ -206,6 +207,9 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
         if (m.milkyWay) {
             f.gcVisibleAz?.let { azLine(c, mv, f, it, base, paint(0xFFCCCCCC.toInt(), 6f)) }
             f.gcHiddenAz?.let { azLine(c, mv, f, it, base, paint(0xFF777777.toInt(), 6f)) }
+            // Galactic Center rise / set directions (dashed)
+            f.gcRiseAz?.let { azLine(c, mv, f, it, base * 1.1f, paint(0xCCFFFFFF.toInt(), 3f, dashed = true)) }
+            f.gcSetAz?.let { azLine(c, mv, f, it, base * 1.1f, paint(0x99FFFFFF.toInt(), 3f, dashed = true)) }
             if (f.light == LightType.NIGHT || f.light == LightType.ASTRONOMICAL_TWILIGHT) {
                 f.archCrossings.forEach { azLine(c, mv, f, it, base, paint(0xFFFFFFFF.toInt(), 2f)) }
                 f.arch.filter { it.altitude > 0 }.forEach { q -> val s = polar(mv, f, q.azimuth, q.altitude, base); c.drawCircle(s.x, s.y, 4f, paint(0xFFFFFFFF.toInt(), 0f, fill = true)) }
@@ -245,7 +249,7 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
                 val cpx = px(mv, center)
                 val rpx = (r / metersPerPixel(mv, f)).toFloat()
                 c.drawCircle(cpx.x, cpx.y, rpx, paint(0xFF9E9E9E.toInt(), 5f))
-                c.drawText(String.format(java.util.Locale.US, "%.2f km", r / 1000), cpx.x + rpx * 0.71f, cpx.y - rpx * 0.71f, textPaint)
+                c.drawText(com.photocapsules.ui.components.Fmt.dist(r, com.photocapsules.ui.components.Fmt.units), cpx.x + rpx * 0.71f, cpx.y - rpx * 0.71f, textPaint)
             }
             MapTool.NONE -> {}
         }
