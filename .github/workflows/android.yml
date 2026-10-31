@@ -32,7 +32,6 @@ jobs:
 
   apk:
     name: Build APK
-    needs: core-tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
