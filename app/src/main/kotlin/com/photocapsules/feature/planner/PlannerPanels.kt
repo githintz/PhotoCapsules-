@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.photocapsules.core.astro.Eclipses
@@ -137,7 +138,7 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
                 f?.let {
                     // Tap: next main Moon phase; double-tap: previous main phase.
                     Box(Modifier.pointerInput(Unit) {
-                        androidx.compose.foundation.gestures.detectTapGestures(
+                        detectTapGestures(
                             onTap = { m.instant = MoonCalendar.nextPhase(m.instant.plusSeconds(60)).time },
                             onDoubleTap = { m.instant = MoonCalendar.previousPhase(m.instant.minusSeconds(60)).time },
                         )

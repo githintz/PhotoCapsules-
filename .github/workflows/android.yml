@@ -41,7 +41,12 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug 2>&1 | tee build.log
+      - name: Show compiler errors
+        if: failure()
+        run: grep -E "^e: |^w: .*error|What went wrong" -A2 build.log | head -80
       - name: Rename APK
         run: |
           mkdir -p out
