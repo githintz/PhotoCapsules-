@@ -1,0 +1,114 @@
+package com.photocapsules.core.data
+
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.time.Instant
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+import javax.xml.parsers.DocumentBuilderFactory
+
+/**
+ * KML/KMZ export & import of plans and POIs (Google Earth compatible). App-specific fields are stored
+ * in <ExtendedData> so a round trip is lossless; plain placemarks from other apps import as POIs.
+ */
+object Kml {
+    private const val NS_PC = "photocapsules"
+
+    private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+
+    fun toKml(state: LibraryState, documentName: String = "PhotoCapsules"): String = buildString {
+        append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+        append("<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n<Document>\n<name>${esc(documentName)}</name>\n")
+        for (p in state.plans) {
+            append("<Placemark>\n<name>${esc(p.name)}</name>\n")
+            append("<description>${esc(p.notes)}</description>\n")
+            append("<TimeStamp><when>${Instant.ofEpochMilli(p.epochMillis)}</when></TimeStamp>\n")
+            append("<ExtendedData>\n")
+            fun data(k: String, v: Any?) { if (v != null) append("<Data name=\"$NS_PC:$k\"><value>${esc(v.toString())}</value></Data>\n") }
+            data("type", "plan"); data("id", p.id); data("epochMillis", p.epochMillis); data("zoneId", p.zoneId)
+            data("redAltitude", p.redPin.altitudeM); data("redOffset", p.redPin.offsetM)
+            p.blackPin?.let { data("blackLat", it.latitude); data("blackLon", it.longitude); data("blackAltitude", it.altitudeM); data("blackOffset", it.offsetM) }
+            append("</ExtendedData>\n")
+            append("<Point><coordinates>${p.redPin.longitude},${p.redPin.latitude},${p.redPin.altitudeM ?: 0.0}</coordinates></Point>\n</Placemark>\n")
+        }
+        for (p in state.pois) {
+            append("<Placemark>\n<name>${esc(p.name)}</name>\n<description>${esc(p.notes)}</description>\n<ExtendedData>\n")
+            append("<Data name=\"$NS_PC:type\"><value>poi</value></Data>\n<Data name=\"$NS_PC:id\"><value>${esc(p.id)}</value></Data>\n")
+            append("</ExtendedData>\n<Point><coordinates>${p.longitude},${p.latitude},${p.altitudeM ?: 0.0}</coordinates></Point>\n</Placemark>\n")
+        }
+        append("</Document>\n</kml>\n")
+    }
+
+    fun toKmz(state: LibraryState, documentName: String = "PhotoCapsules"): ByteArray {
+        val bos = ByteArrayOutputStream()
+        ZipOutputStream(bos).use { z ->
+            z.putNextEntry(ZipEntry("doc.kml"))
+            z.write(toKml(state, documentName).toByteArray(Charsets.UTF_8))
+            z.closeEntry()
+        }
+        return bos.toByteArray()
+    }
+
+    /** Parses KML or KMZ bytes (detected by the ZIP magic number). */
+    fun parse(bytes: ByteArray): LibraryState {
+        val isZip = bytes.size > 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()
+        if (!isZip) return parseKml(ByteArrayInputStream(bytes))
+        ZipInputStream(ByteArrayInputStream(bytes)).use { z ->
+            var e = z.nextEntry
+            while (e != null) {
+                if (e.name.lowercase().endsWith(".kml")) return parseKml(ByteArrayInputStream(z.readBytes()))
+                e = z.nextEntry
+            }
+        }
+        return LibraryState()
+    }
+
+    fun parseKml(input: InputStream): LibraryState {
+        val f = DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = false
+            // Hardening against XXE
+            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            setFeature("http://xml.org/sax/features/external-general-entities", false)
+            setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+            isExpandEntityReferences = false
+        }
+        val doc = f.newDocumentBuilder().parse(input)
+        val placemarks = doc.getElementsByTagName("Placemark")
+        val plans = ArrayList<Plan>(); val pois = ArrayList<PointOfInterest>()
+        for (i in 0 until placemarks.length) {
+            val pm = placemarks.item(i) as org.w3c.dom.Element
+            fun text(tag: String): String? = pm.getElementsByTagName(tag).let { if (it.length > 0) it.item(0).textContent.trim() else null }
+            val coords = text("coordinates")?.split(Regex("[,\\s]+"))?.filter { it.isNotBlank() } ?: continue
+            if (coords.size < 2) continue
+            val lon = coords[0].toDoubleOrNull() ?: continue
+            val lat = coords[1].toDoubleOrNull() ?: continue
+            if (lat !in -90.0..90.0 || lon !in -180.0..180.0) continue
+            val alt = coords.getOrNull(2)?.toDoubleOrNull()?.takeIf { it != 0.0 }
+            val data = HashMap<String, String>()
+            val dataNodes = pm.getElementsByTagName("Data")
+            for (j in 0 until dataNodes.length) {
+                val d = dataNodes.item(j) as org.w3c.dom.Element
+                val v = d.getElementsByTagName("value").let { if (it.length > 0) it.item(0).textContent else "" }
+                data[d.getAttribute("name").removePrefix("$NS_PC:")] = v
+            }
+            val name = text("name") ?: "Imported"
+            val notes = text("description") ?: ""
+            if (data["type"] == "plan") {
+                val when_ = data["epochMillis"]?.toLongOrNull() ?: text("when")?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() } ?: continue
+                val black = data["blackLat"]?.toDoubleOrNull()?.let { bl ->
+                    data["blackLon"]?.toDoubleOrNull()?.let { PinState(bl, it, data["blackAltitude"]?.toDoubleOrNull(), data["blackOffset"]?.toDoubleOrNull() ?: 0.0) }
+                }
+                plans.add(Plan(
+                    id = data["id"] ?: LibraryRepository.newId(), name = name,
+                    redPin = PinState(lat, lon, data["redAltitude"]?.toDoubleOrNull() ?: alt, data["redOffset"]?.toDoubleOrNull() ?: 0.0),
+                    blackPin = black, epochMillis = when_, zoneId = data["zoneId"] ?: "UTC", notes = notes,
+                ))
+            } else {
+                pois.add(PointOfInterest(data["id"] ?: LibraryRepository.newId(), name, lat, lon, alt, notes))
+            }
+        }
+        return LibraryState(plans, pois)
+    }
+}
