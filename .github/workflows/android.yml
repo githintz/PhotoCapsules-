@@ -46,7 +46,8 @@ jobs:
           ./gradlew :app:assembleDebug 2>&1 | tee build.log
       - name: Show compiler errors
         if: failure()
-        run: grep -E "^e: |^w: .*error|What went wrong" -A2 build.log | head -80
+        run: |
+          grep -E "^e: |What went wrong" -A2 build.log | head -80
       - name: Rename APK
         run: |
           mkdir -p out
