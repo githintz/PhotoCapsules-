@@ -52,6 +52,21 @@ object LocationService {
     }
 
     /** Magnetic declination (degrees, east positive) from the World Magnetic Model. */
+    /**
+     * Height above mean sea level for a fix, or 0.0 (= unknown) when it cannot be derived. GPS altitude is
+     * the height above the WGS84 ellipsoid, which differs from sea level by the geoid undulation (±100 m);
+     * Android 14+ converts it with the on-device geoid model, older versions leave it unknown.
+     */
+    suspend fun seaLevelAltitude(ctx: Context, loc: Location): Double = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE && loc.hasAltitude()) {
+            runCatching {
+                val copy = Location(loc)
+                android.location.altitude.AltitudeConverter().addMslAltitudeToLocation(ctx, copy)
+                if (copy.hasMslAltitude()) copy.mslAltitudeMeters else 0.0
+            }.getOrDefault(0.0)
+        } else 0.0
+    }
+
     fun magneticDeclination(lat: Double, lon: Double, altitudeM: Double, timeMillis: Long): Double =
         GeomagneticField(lat.toFloat(), lon.toFloat(), altitudeM.toFloat(), timeMillis).declination.toDouble()
 }

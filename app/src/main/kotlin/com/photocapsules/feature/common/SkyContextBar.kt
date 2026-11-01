@@ -96,7 +96,7 @@ fun SkyContextDialog(ctx: SkyContext, onDismiss: () -> Unit) {
                 Option("Use my current location") {
                     scope.launch {
                         val loc = LocationService.current(context)
-                        if (loc != null) AppState.sky.value = ctx.copy(point = GeoPoint(loc.latitude, loc.longitude, if (loc.hasAltitude()) loc.altitude else 0.0),
+                        if (loc != null) AppState.sky.value = ctx.copy(point = GeoPoint(loc.latitude, loc.longitude, LocationService.seaLevelAltitude(context, loc)),
                             label = "Current location", zone = ZoneId.systemDefault(), live = true, instant = Instant.now())
                     }
                     onDismiss()

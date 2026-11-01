@@ -87,6 +87,14 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
 
     var objectHeightM by mutableDoubleStateOf(10.0)
     var findBody by mutableIntStateOf(0)
+    // Find dialog inputs, kept while the dialog is closed (e.g. while pointing a target with AR).
+    var findRangeIdx by mutableIntStateOf(3)
+    var findStart by mutableStateOf<Instant?>(null)
+    var findAz by mutableStateOf<Double?>(null)
+    var findAzTol by mutableDoubleStateOf(3.0)
+    var findUseAlt by mutableStateOf(true)
+    var findAlt by mutableStateOf<Double?>(null)
+    var findAltTol by mutableDoubleStateOf(0.5)
     var focalLocked by mutableStateOf(false)
     var teleconverter by mutableDoubleStateOf(1.0)
     var expanded by mutableStateOf(false)
@@ -95,8 +103,18 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
     var fineTimeScale by mutableStateOf(false)
     var centerRequest by mutableIntStateOf(0)
 
-    private val undo = ArrayDeque<Pair<LatLon, LatLon?>>()
-    private val redo = ArrayDeque<Pair<LatLon, LatLon?>>()
+    /** Full state of a pin (position and altitudes) for undo/redo. */
+    private data class PinSnap(val pos: LatLon, val custom: Double?, val terrain: Double?, val offset: Double)
+    private data class PinsSnapshot(val red: PinSnap, val black: PinSnap?)
+    private val undo = ArrayDeque<PinsSnapshot>()
+    private val redo = ArrayDeque<PinsSnapshot>()
+
+    private fun snapshot() = PinsSnapshot(
+        PinSnap(red, redCustomAltitude, redTerrain, redOffset),
+        black?.let { PinSnap(it, blackCustomAltitude, blackTerrain, blackOffset) },
+    )
+
+    private fun pushUndo() { undo.addLast(snapshot()); redo.clear(); if (undo.size > 50) undo.removeFirst() }
 
     /** Observer altitude: terrain (or custom) + offset. */
     val redAltitude: Double get() = (redCustomAltitude ?: redTerrain ?: 0.0) + redOffset
@@ -113,39 +131,54 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
     }
 
     fun moveRed(p: LatLon, record: Boolean = true) {
-        if (record) { undo.addLast(red to black); redo.clear(); if (undo.size > 50) undo.removeFirst() }
+        if (record) pushUndo()
         // Custom altitudes reset when the pin moves more than 30 m (PhotoPills behaviour).
         if (Geodesy.haversine(red, p) > 30) { redCustomAltitude = null; redTerrain = null }
+        relocateHorizon(red, p)
         red = p
     }
 
     fun moveBlack(p: LatLon?, record: Boolean = true) {
-        if (record) { undo.addLast(red to black); redo.clear() }
+        if (record) pushUndo()
         val b = black
         if (p == null || b == null || Geodesy.haversine(b, p) > 30) { blackCustomAltitude = null; blackTerrain = null }
         black = p
     }
 
-    fun undo() { undo.removeLastOrNull()?.let { redo.addLast(red to black); restorePins(it) } }
-    fun redo() { redo.removeLastOrNull()?.let { undo.addLast(red to black); restorePins(it) } }
+    fun undo() { undo.removeLastOrNull()?.let { redo.addLast(snapshot()); restore(it) } }
+    fun redo() { redo.removeLastOrNull()?.let { undo.addLast(snapshot()); restore(it) } }
 
-    /** Restores a pin pair; only a pin that actually moved loses its (now stale) terrain altitude. */
-    private fun restorePins(state: Pair<LatLon, LatLon?>) {
-        val (r, b) = state
-        if (Geodesy.haversine(red, r) > 1.0) redTerrain = null
-        val ob = black
-        if (b == null || ob == null || Geodesy.haversine(ob, b) > 1.0) blackTerrain = null
-        red = r; black = b
+    /** Restores both pins exactly as they were (position, custom/terrain altitude and offset). */
+    private fun restore(s: PinsSnapshot) {
+        relocateHorizon(red, s.red.pos)
+        red = s.red.pos; redCustomAltitude = s.red.custom; redTerrain = s.red.terrain; redOffset = s.red.offset
+        black = s.black?.pos; blackCustomAltitude = s.black?.custom; blackTerrain = s.black?.terrain; blackOffset = s.black?.offset ?: 0.0
     }
+
+    /**
+     * Keeps the Horizon Pin at the same bearing and distance from the Red Pin when the Red Pin moves more
+     * than 2 km (its terrain and any manual horizon height belong to the old place and are reset).
+     */
+    private fun relocateHorizon(from: LatLon, to: LatLon) {
+        val hp = horizonPin ?: return
+        if (Geodesy.haversine(from, to) <= 2000.0) return
+        val inv = Geodesy.inverse(from, hp)
+        horizonPin = Geodesy.direct(to, inv.initialBearing, inv.distanceMeters.coerceIn(500.0, 100_000.0))
+        horizonPinTerrain = null; horizonCustomHeight = null
+    }
+
     val canUndo get() = undo.isNotEmpty()
     val canRedo get() = redo.isNotEmpty()
 
+    /** Swaps the pins with everything attached to them (altitudes and offsets). */
     fun swapPins() {
         val b = black ?: return
-        undo.addLast(red to black)
-        val rt = redTerrain; val bt = blackTerrain
-        black = red; red = b; redTerrain = bt; blackTerrain = rt
-        redCustomAltitude = null; blackCustomAltitude = null
+        pushUndo()
+        relocateHorizon(red, b)
+        val rt = redTerrain; val rc = redCustomAltitude; val ro = redOffset
+        black = red; red = b
+        redTerrain = blackTerrain; redCustomAltitude = blackCustomAltitude; redOffset = blackOffset
+        blackTerrain = rt; blackCustomAltitude = rc; blackOffset = ro
     }
 
     data class Geodetics(val distanceM: Double, val bearing: Double, val altitudeDiffM: Double, val elevationAngle: Double)

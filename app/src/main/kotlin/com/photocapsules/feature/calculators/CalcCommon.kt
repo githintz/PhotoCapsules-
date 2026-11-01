@@ -51,7 +51,9 @@ fun settingsState(): Settings = PhotoCapsulesApp.instance.settings.state.collect
 fun CameraRow(key: String, label: String = "Camera"): Camera {
     val store = PhotoCapsulesApp.instance.settings
     var name by rememberPersistedString("cam_$key", store.current.cameraName)
-    val camera = remember(name) { store.cameraByName(name) }
+    // Keyed on the custom camera too: redefining "My camera" with a new sensor must update the calculators.
+    val customJson = settingsState().customCameraJson
+    val camera = remember(name, customJson) { store.cameraByName(name) }
     var open by remember { mutableStateOf(false) }
     ValueRow(label, camera.name, onClick = { open = true }, sub = String.format(java.util.Locale.US, "Crop %.2f · CoC %.3f mm", camera.cropFactor, camera.circleOfConfusionMm))
     if (open) CameraPickerDialog(camera, { open = false }) { name = it.name }

@@ -25,6 +25,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -95,13 +96,18 @@ fun FindDialog(m: PlannerModel, mapCenter: () -> LatLon?, onPickWithAr: () -> Un
     val g = m.geodetics()
     val arTarget = remember { com.photocapsules.data.AppState.findTarget.value.also { com.photocapsules.data.AppState.findTarget.value = null } }
     var body by remember { mutableIntStateOf(m.findBody) }
-    var rangeIdx by remember { mutableIntStateOf(3) }
-    var start by remember { mutableStateOf(m.instant) }
-    var az by remember { mutableDoubleStateOf(arTarget?.azimuth ?: g?.bearing ?: 270.0) }
-    var azTol by remember { mutableDoubleStateOf(3.0) }
-    var useAlt by remember { mutableStateOf(true) }
-    var alt by remember { mutableDoubleStateOf(arTarget?.altitude ?: g?.elevationAngle ?: 0.0) }
-    var altTol by remember { mutableDoubleStateOf(0.5) }
+    var rangeIdx by remember { mutableIntStateOf(m.findRangeIdx) }
+    var start by remember { mutableStateOf(m.findStart ?: m.instant) }
+    var az by remember { mutableDoubleStateOf(arTarget?.azimuth ?: m.findAz ?: g?.bearing ?: 270.0) }
+    var azTol by remember { mutableDoubleStateOf(m.findAzTol) }
+    var useAlt by remember { mutableStateOf(m.findUseAlt || arTarget != null) }
+    var alt by remember { mutableDoubleStateOf(arTarget?.altitude ?: m.findAlt ?: g?.elevationAngle ?: 0.0) }
+    var altTol by remember { mutableDoubleStateOf(m.findAltTol) }
+    // Remember the inputs in the model so they survive closing the dialog (AR pointing, map checks).
+    LaunchedEffect(rangeIdx, start, az, azTol, useAlt, alt, altTol) {
+        m.findRangeIdx = rangeIdx; m.findStart = start; m.findAz = az; m.findAzTol = azTol
+        m.findUseAlt = useAlt; m.findAlt = alt; m.findAltTol = altTol
+    }
     var edit by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableFloatStateOf(-1f) }
     var results by remember { mutableStateOf<List<FindResult>?>(null) }

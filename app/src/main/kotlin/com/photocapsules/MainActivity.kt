@@ -39,9 +39,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshLocation() {
-        LocationService.lastKnown(this)?.let { applyLocation(it.latitude, it.longitude, if (it.hasAltitude()) it.altitude else 0.0) }
         lifecycleScope.launch {
-            LocationService.current(this@MainActivity)?.let { applyLocation(it.latitude, it.longitude, if (it.hasAltitude()) it.altitude else 0.0) }
+            LocationService.lastKnown(this@MainActivity)?.let { applyLocation(it.latitude, it.longitude, LocationService.seaLevelAltitude(this@MainActivity, it)) }
+            LocationService.current(this@MainActivity)?.let { applyLocation(it.latitude, it.longitude, LocationService.seaLevelAltitude(this@MainActivity, it)) }
         }
     }
 
