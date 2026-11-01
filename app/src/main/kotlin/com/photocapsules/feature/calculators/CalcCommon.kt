@@ -58,6 +58,12 @@ fun CameraRow(key: String, label: String = "Camera"): Camera {
     return camera
 }
 
+/** When a fixed-lens camera (compact, phone, drone) is selected, adopt its focal length. */
+@Composable
+fun FixedFocal(camera: Camera, apply: (Double) -> Unit) {
+    androidx.compose.runtime.LaunchedEffect(camera.name) { camera.fixedFocalMm?.let(apply) }
+}
+
 @Composable
 fun NumberRow(label: String, value: Double, unit: String, display: String = trimNumber(value) + if (unit.isNotEmpty()) " $unit" else "",
               min: Double = 0.0, max: Double = Double.MAX_VALUE, allowNegative: Boolean = false, sub: String? = null, onChange: (Double) -> Unit) {

@@ -50,6 +50,15 @@ class DataTest {
         assertEquals(null, Kml.parse(text.toByteArray()).plans.single().blackPin)
     }
 
+    @Test fun absurdDatesAndZonesAreRejectedOrFixed() {
+        val bad = Plan("b", "bad", PinState(1.0, 2.0), null, Long.MAX_VALUE, "Not/AZone")
+        val good = Plan("g", "good", PinState(1.0, 2.0), null, 1_790_000_000_000, "Mars/Olympus", photoUris = listOf("content://a/1", "content://a/2"))
+        val back = Kml.parse(Kml.toKmz(LibraryState(plans = listOf(bad, good))))
+        assertEquals(listOf("good"), back.plans.map { it.name })
+        assertEquals("UTC", back.plans.single().zoneId)
+        assertEquals(listOf("content://a/1", "content://a/2"), back.plans.single().photoUris)
+    }
+
     @Test fun xxeIsRejected() {
         val evil = """<?xml version="1.0"?><!DOCTYPE kml [<!ENTITY x SYSTEM "file:///etc/passwd">]><kml><Document><Placemark><name>&x;</name><Point><coordinates>0,0</coordinates></Point></Placemark></Document></kml>"""
         val r = runCatching { Kml.parse(evil.toByteArray()) }

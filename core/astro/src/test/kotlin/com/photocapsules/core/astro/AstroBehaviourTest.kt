@@ -135,6 +135,19 @@ class AstroBehaviourTest {
         assertTrue(minutesBetween(low, high) < 0.05, "${minutesBetween(low, high)}")
     }
 
+    @Test fun showerActivityWindowsAreSaneEveryYear() {
+        for (year in 2020..2035) for (sh in MeteorShowers.all) {
+            val o = MeteorShowers.occurrence(sh, year)
+            val peak = o.peak.atZone(ZoneOffset.UTC).toLocalDate()
+            val span = o.activityEnd.toEpochDay() - o.activityStart.toEpochDay()
+            assertTrue(span in 0..90, "${sh.code} $year span $span: ${o.activityStart}..${o.activityEnd}")
+            assertTrue(!peak.isBefore(o.activityStart) && !peak.isAfter(o.activityEnd), "${sh.code} $year peak $peak outside ${o.activityStart}..${o.activityEnd}")
+        }
+        // June Bootids are not active in February
+        assertTrue(MeteorShowers.active(Instant.parse("2028-02-29T00:00:00Z")).none { it.shower.code == "JBO" })
+        assertTrue(MeteorShowers.active(Instant.parse("2028-06-25T00:00:00Z")).any { it.shower.code == "JBO" })
+    }
+
     @Test fun comaeBerenicidsIncludesDlmRegion() {
         assertNull(MeteorShowers.byCode("DLM"))
         val com = MeteorShowers.occurrence(MeteorShowers.byCode("COM")!!, 2026)

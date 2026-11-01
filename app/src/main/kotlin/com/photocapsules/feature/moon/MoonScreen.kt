@@ -137,7 +137,7 @@ private fun MoonInfo() {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         next.forEach { ph ->
             Column(Modifier.background(Palette.Surface, RoundedCornerShape(10.dp)).clickable { setSkyTime(ph.time) }.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                MoonDisc(ph.phase.angle, 40.dp)
+                MoonDisc(ph.phase.angle, 40.dp, latitude = ctx.point.latitude)
                 Text(ph.phase.label, color = Palette.Text, fontSize = 12.sp)
                 Text(Fmt.dateShort(ph.time, ctx.zone) + " " + Fmt.time(ph.time, ctx.zone), color = Palette.TextDim, fontSize = 11.sp)
                 if (ph.isSupermoon) Text("Supermoon", color = Palette.Accent, fontSize = 11.sp)
@@ -166,9 +166,12 @@ private fun MoonInfo() {
     Card {
         val nextRise = DayEvents.nextRiseSet(SkyBody.MOON, true, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)
         val nextSet = DayEvents.nextRiseSet(SkyBody.MOON, false, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)
-        val up = nextSet != null && (nextRise == null || nextSet.time < nextRise.time)
-        if (up) ValueRow("Time to set", Format.duration((nextSet!!.time.epochSecond - ctx.instant.epochSecond).toDouble(), false))
-        else ValueRow("Time to rise", nextRise?.let { Format.duration((it.time.epochSecond - ctx.instant.epochSecond).toDouble(), false) } ?: "—")
+        when {
+            nextSet == null && nextRise == null ->
+                if (info.position.altitude > 0) ValueRow("Time to set", "Does not set in the next 48 h") else ValueRow("Time to rise", "Does not rise in the next 48 h")
+            nextSet != null && (nextRise == null || nextSet.time < nextRise.time) -> ValueRow("Time to set", Format.duration((nextSet.time.epochSecond - ctx.instant.epochSecond).toDouble(), false))
+            else -> ValueRow("Time to rise", Format.duration((nextRise!!.time.epochSecond - ctx.instant.epochSecond).toDouble(), false))
+        }
         ValueRow("Angular diameter", String.format(Locale.US, "%.4f°", info.position.angularDiameterDeg))
         ValueRow("Age", String.format(Locale.US, "%.1f days", info.ageDays))
         ValueRow("Distance", Fmt.km(info.position.distanceKm, units))
@@ -211,7 +214,7 @@ private fun MoonMonth() {
                         Column(Modifier.let { m -> if (border != null) m.border(2.dp, border, CircleShape) else m }.clickable {
                             setSkyTime(date.atTime(21, 0).atZone(zone).toInstant())
                         }.padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            data?.first?.getOrNull(d - 1)?.let { MoonDisc(it, 26.dp) }
+                            data?.first?.getOrNull(d - 1)?.let { MoonDisc(it, 26.dp, latitude = ctx.point.latitude) }
                             Text("$d", color = if (phaseHere != null) Palette.Accent else Palette.Text, fontSize = 11.sp)
                         }
                     }

@@ -71,6 +71,17 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
     var sunMoonSizeM by mutableDoubleStateOf(50.0)
     var droneAltitudeM by mutableDoubleStateOf(120.0)
     var droneGrid by mutableStateOf(CompositionGrid.THIRDS)
+    /** Camera used in drone mode (null = the default camera from Settings). */
+    var droneCameraName by mutableStateOf<String?>(null)
+
+    /** Camera used by the map tools: the drone camera in drone mode, otherwise the default camera. */
+    fun toolCamera(): com.photocapsules.core.photo.Camera {
+        val store = com.photocapsules.PhotoCapsulesApp.instance.settings
+        return if (mode == PlannerMode.DRONE) droneCameraName?.let { store.cameraByName(it) } ?: store.camera() else store.camera()
+    }
+
+    /** Real focal length used by the tools: a fixed-lens camera (drone, compact, phone) forces its own lens. */
+    fun toolFocalMm(): Double = toolCamera().fixedFocalMm ?: focalMm
 
     var objectHeightM by mutableDoubleStateOf(10.0)
     var findBody by mutableIntStateOf(0)

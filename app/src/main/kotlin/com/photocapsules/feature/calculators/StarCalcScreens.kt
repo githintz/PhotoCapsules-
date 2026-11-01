@@ -54,7 +54,7 @@ fun SpotStarsScreen(onBack: () -> Unit, go: (String) -> Unit) {
     }) { p ->
         ScrollColumn(p) {
             Card {
-                camera = CameraRow("ss")
+                camera = CameraRow("ss"); FixedFocal(camera) { f = it }
                 NumberRow("Focal length", f, "mm", min = 1.0, max = 2000.0) { f = it }
                 ApertureRow(value = n) { n = it }
                 NumberRow("Declination", dec, "°", display = String.format(Locale.US, "%.1f°", dec), min = -90.0, max = 90.0, allowNegative = true,

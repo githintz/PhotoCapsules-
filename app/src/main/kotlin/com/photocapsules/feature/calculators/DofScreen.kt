@@ -77,7 +77,7 @@ fun DofScreen(onBack: () -> Unit, go: (String) -> Unit) {
                 0 -> {
                     lateinit var camera: Camera
                     Card {
-                        camera = CameraRow("dof")
+                        camera = CameraRow("dof"); FixedFocal(camera) { f = it }
                         NumberRow("Focal length", f, "mm", min = 1.0, max = 5000.0, sub = "35 mm equiv. " + Format.trimZeros(String.format(Locale.US, "%.1f", f * camera.cropFactor)) + " mm") { f = it }
                         ApertureRow(value = n) { n = it }
                         DistanceRow("Subject distance", s, units) { s = it }
@@ -95,7 +95,7 @@ fun DofScreen(onBack: () -> Unit, go: (String) -> Unit) {
                     var acOpen by remember { mutableStateOf(false) }
                     val acuity = CircleOfConfusion.Acuity.entries[ac.toInt().coerceIn(0, 3)]
                     Card {
-                        camera = CameraRow("dof")
+                        camera = CameraRow("dof"); FixedFocal(camera) { f = it }
                         SectionTitle("Circle of confusion")
                         DistanceRow("Print width", pw, units) { pw = it }
                         DistanceRow("Print height", ph, units) { ph = it }
@@ -183,7 +183,7 @@ private fun InverseDof(units: UnitSystem, tcInit: Double): DofResult? {
     PillRow(listOf("Subject distance", "Aperture", "Focal length"), solve.toInt()) { solve = it.toDouble() }
     lateinit var camera: Camera
     Card {
-        camera = CameraRow("dof")
+        camera = CameraRow("dof"); FixedFocal(camera) { f = it }
         if (solve.toInt() != 2) NumberRow("Focal length", f, "mm", min = 1.0, max = 5000.0) { f = it }
         if (solve.toInt() != 1) ApertureRow(value = n) { n = it }
         if (solve.toInt() != 0) DistanceRow("Subject distance", s, units) { s = it }

@@ -212,7 +212,9 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
             @Suppress("UNUSED_EXPRESSION") tick
             projHolder[0]?.let { p ->
                 val c = p.center()
-                Text("Az " + Fmt.az(c.azimuth) + String.format(Locale.US, " · El %.1f° · decl. %+.1f°", c.altitude, declination), color = Color.White, fontSize = 12.sp,
+                // Magnetic readout uses the declination at the phone's own location (like a hand compass).
+                val azTxt = if (Fmt.magneticAzimuths) String.format(Locale.US, "%.1f°M", com.photocapsules.core.astro.normalizeDegrees(c.azimuth - declination)) else String.format(Locale.US, "%.1f°", c.azimuth)
+                Text("Az " + azTxt + String.format(Locale.US, " · El %.1f° · decl. %+.1f°", c.altitude, declination), color = Color.White, fontSize = 12.sp,
                     modifier = Modifier.background(Color(0x88000000), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
             }
             if (!tracker.available) Text("This device has no compass: AR is not available.", color = Palette.Red)
@@ -226,7 +228,7 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
             if (!calibrating) {
                 TextButton(onClick = { calibrating = true }) { Text("Calibrate", color = Color.White) }
                 if (mode == ArMode.SPOT_STARS) Button(onClick = {
-                    projHolder[0]?.let { p -> AppState.measuredDeclination.value = minAbsDeclination(p, where, instant) }
+                    projHolder[0]?.let { p -> AppState.measuredDeclination.value = minAbsDeclination(p, where, instant, request.focalMm) }
                     onBack()
                 }, colors = ButtonDefaults.buttonColors(containerColor = Palette.Accent, contentColor = Color.Black)) { Text("Use declination") }
                 if (mode == ArMode.FIND_TARGET) Button(onClick = {
@@ -453,16 +455,28 @@ private fun DrawScope.drawFrame(p: Projector, req: ArRequest, locked: List<Doubl
     text(String.format(Locale.US, "%.0f mm · %.1f° × %.1f°", req.focalMm, req.frameHAngleDeg ?: 0.0, req.frameVAngleDeg ?: 0.0), Offset(20f, size.height - 220f), Palette.Accent)
 }
 
-/** Minimum |declination| among the centre and the corners of a landscape and portrait frame. */
-private fun minAbsDeclination(p: Projector, where: GeoPoint, instant: Instant): Double {
-    val pts = listOf(p.w / 2 to p.h / 2, 0f to 0f, p.w to 0f, 0f to p.h, p.w to p.h)
-    return pts.map { (x, y) -> NightSky.declinationAt(p.unproject(x, y), instant, where) }.minBy { kotlin.math.abs(it) }
+/**
+ * Minimum |declination| inside the photo frame of the chosen camera/focal length, centred on the screen, for
+ * both landscape and portrait framing. Samples a 7×7 grid; if the celestial equator crosses the frame
+ * (declinations of both signs) the minimum is 0.
+ */
+private fun minAbsDeclination(p: Projector, where: GeoPoint, instant: Instant, focalMm: Double): Double {
+    val cam = PhotoCapsulesApp.instance.settings.camera()
+    val tl = cam.sensorWidthMm / (2 * focalMm); val ts = cam.sensorHeightMm / (2 * focalMm)
+    val decs = ArrayList<Double>()
+    for ((tx, ty) in listOf(tl to ts, ts to tl)) for (i in 0..6) for (j in 0..6) {
+        val x = p.w / 2 + (p.fPx * tx * (i / 3.0 - 1)).toFloat()
+        val y = p.h / 2 + (p.fPx * ty * (j / 3.0 - 1)).toFloat()
+        decs.add(NightSky.declinationAt(p.unproject(x, y), instant, where))
+    }
+    if (decs.any { it <= 0 } && decs.any { it >= 0 }) return 0.0
+    return decs.minBy { kotlin.math.abs(it) }
 }
 
 private fun DrawScope.drawSpotStars(p: Projector, sky: ArSky?, where: GeoPoint, instant: Instant, req: ArRequest) {
     sky?.let { drawNight(p, it, java.time.ZoneId.systemDefault()) }
     val cam = PhotoCapsulesApp.instance.settings.camera()
-    val dec = minAbsDeclination(p, where, instant)
+    val dec = minAbsDeclination(p, where, instant, req.focalMm)
     val pitch = cam.pixelPitchUm
     val t = pitch?.let { SpotStars.npf(req.aperture, req.focalMm, it, dec, SpotStars.Accuracy.DEFAULT) }
     val txt = String.format(Locale.US, "Min. declination %.1f°  ·  NPF %s  ·  500 rule %.1f s", dec, t?.let { String.format(Locale.US, "%.1f s", it) } ?: "—", SpotStars.rule500(cam.cropFactor, req.focalMm))

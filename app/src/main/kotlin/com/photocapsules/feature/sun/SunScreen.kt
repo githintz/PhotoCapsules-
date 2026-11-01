@@ -136,9 +136,12 @@ private fun SunInfo() {
         val nextRise = DayEvents.nextRiseSet(SkyBody.SUN, true, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)
         val nextSet = DayEvents.nextRiseSet(SkyBody.SUN, false, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)
         // Up if the next set comes before the next rise (independent of refraction thresholds).
-        val up = nextSet != null && (nextRise == null || nextSet.time < nextRise.time)
-        if (up) ValueRow("Time to set", Format.duration((nextSet!!.time.epochSecond - ctx.instant.epochSecond).toDouble(), false))
-        else ValueRow("Time to rise", nextRise?.let { Format.duration((it.time.epochSecond - ctx.instant.epochSecond).toDouble(), false) } ?: "—")
+        when {
+            nextSet == null && nextRise == null ->
+                if (pos.trueAltitude > -0.833) ValueRow("Time to set", "Does not set (midnight sun)") else ValueRow("Time to rise", "Does not rise (polar night)")
+            nextSet != null && (nextRise == null || nextSet.time < nextRise.time) -> ValueRow("Time to set", Format.duration((nextSet.time.epochSecond - ctx.instant.epochSecond).toDouble(), false))
+            else -> ValueRow("Time to rise", Format.duration((nextRise!!.time.epochSecond - ctx.instant.epochSecond).toDouble(), false))
+        }
         ValueRow("Daylight", d?.let { Format.duration(it.daylightSeconds, false) } ?: "—")
         ValueRow("Azimuth", Fmt.az(pos.azimuth, 2))
         ValueRow("Elevation", Fmt.deg(pos.altitude, 2))

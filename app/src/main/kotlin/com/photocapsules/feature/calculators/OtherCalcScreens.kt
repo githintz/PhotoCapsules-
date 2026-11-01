@@ -102,7 +102,7 @@ fun SubjectDistanceScreen(onBack: () -> Unit, go: (String) -> Unit) {
     }) { p ->
         ScrollColumn(p) {
             Card {
-                camera = CameraRow("sd")
+                camera = CameraRow("sd"); FixedFocal(camera) { f = it }
                 NumberRow("Focal length", f, "mm", min = 1.0, max = 5000.0) { f = it }
                 DistanceRow("Subject width", w, units) { w = it }
                 DistanceRow("Subject height", h, units) { h = it }
@@ -141,7 +141,7 @@ fun FocalMatchScreen(onBack: () -> Unit) {
     AppScreen("Focal length match", onBack) { p ->
         ScrollColumn(p) {
             Card {
-                c1 = CameraRow("fm1", "Camera 1")
+                c1 = CameraRow("fm1", "Camera 1"); FixedFocal(c1) { f = it }
                 c2 = CameraRow("fm2", "Camera 2")
             }
             SectionTitle("Camera 1 settings")

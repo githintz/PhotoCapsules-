@@ -130,7 +130,7 @@ private fun ShowerRow(occ: ShowerOccurrence, zone: ZoneId, where: GeoPoint, onCl
                 color = Palette.TextDim, fontSize = 11.sp)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            MoonDisc(moon.phaseAngle, 24.dp)
+            MoonDisc(moon.phaseAngle, 24.dp, latitude = where.latitude)
             EnergyBar(quality(occ, moon.illumination))
         }
     }
@@ -189,7 +189,7 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
             if (peak != null && peak.second > 0) Text("Tonight's peak: ${String.format(Locale.US, "%.0f", peak.second)}/h at ${Fmt.time(peak.first, zone)}", color = Palette.Text,
                 modifier = Modifier.clickable { setSkyTime(peak.first) })
             Row(verticalAlignment = Alignment.CenterVertically) {
-                MoonDisc(moon.phaseAngle, 28.dp)
+                MoonDisc(moon.phaseAngle, 28.dp, latitude = where.latitude)
                 Text("  ${moon.phase.label} ${Fmt.pct(moon.illumination)} · ${com.photocapsules.core.photo.Format.duration(dark, false)} dark without Moon", color = Palette.TextDim, fontSize = 12.sp)
             }
         }

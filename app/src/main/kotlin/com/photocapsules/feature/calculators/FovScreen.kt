@@ -67,7 +67,7 @@ fun FovScreen(onBack: () -> Unit, go: (String) -> Unit) {
             lateinit var camera: Camera
             if (tab == 0) {
                 Card {
-                    camera = CameraRow("fov").also { PhotoCapsulesCamera.set(it) }
+                    camera = CameraRow("fov").also { PhotoCapsulesCamera.set(it) }; FixedFocal(camera) { f = it }
                     NumberRow("Focal length", f, "mm", min = 1.0, max = 5000.0, sub = "35 mm equiv. " + String.format(Locale.US, "%.0f", f * tc * camera.cropFactor) + " mm") { f = it }
                     DistanceRow("Subject distance", s, units) { s = it }
                     TeleconverterRow(tc) { tc = it }
@@ -82,7 +82,7 @@ fun FovScreen(onBack: () -> Unit, go: (String) -> Unit) {
                 SectionTitle("Calculate")
                 PillRow(listOf("Focal length", "Subject distance"), solve.toInt()) { solve = it.toDouble() }
                 Card {
-                    camera = CameraRow("fov").also { PhotoCapsulesCamera.set(it) }
+                    camera = CameraRow("fov").also { PhotoCapsulesCamera.set(it) }; FixedFocal(camera) { f = it }
                     if (solve == 0.0) DistanceRow("Subject distance", s, units) { s = it } else NumberRow("Focal length", f, "mm", min = 1.0) { f = it }
                     DistanceRow("Desired field of view", field, units) { field = it }
                 }

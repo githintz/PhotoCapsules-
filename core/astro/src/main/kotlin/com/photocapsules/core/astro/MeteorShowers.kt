@@ -118,13 +118,15 @@ object MeteorShowers {
     fun occurrence(shower: MeteorShower, year: Int): ShowerOccurrence {
         val peak = instantOfSolarLongitude(shower.peakSolarLongitude, year)
         val peakDate = peak.atZone(ZoneOffset.UTC).toLocalDate()
-        fun around(md: MonthDay, before: Boolean): LocalDate {
-            // Choose the year that places the date on the correct side of the peak, within ±200 days.
-            val candidates = listOf(year - 1, year, year + 1).map { md.atYear(it) }
-            return if (before) candidates.filter { !it.isAfter(peakDate) }.maxOrNull()!!
-            else candidates.filter { !it.isBefore(peakDate) }.minOrNull()!!
-        }
-        return ShowerOccurrence(shower, around(shower.activityStart, true), around(shower.activityEnd, false), peak)
+        // The listed activity dates are calendar dates while the peak moves with the solar longitude (it can fall a
+        // day before the listed start, e.g. June Bootids peaking on 21 June). Choose the start as the latest
+        // candidate not more than a few days after the peak, the end as the first candidate on/after the start,
+        // then make sure the window contains the peak.
+        val slack = 3L
+        val starts = listOf(year - 1, year, year + 1).map { shower.activityStart.atYear(it) }
+        val start = starts.filter { !it.isAfter(peakDate.plusDays(slack)) }.max()
+        val end = listOf(year - 1, year, year + 1, year + 2).map { shower.activityEnd.atYear(it) }.filter { !it.isBefore(start) }.min()
+        return ShowerOccurrence(shower, minOf(start, peakDate), maxOf(end, peakDate), peak)
     }
 
     fun occurrences(year: Int): List<ShowerOccurrence> = all.map { occurrence(it, year) }.sortedBy { it.peak }

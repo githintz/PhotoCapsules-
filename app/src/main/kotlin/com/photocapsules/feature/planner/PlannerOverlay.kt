@@ -290,11 +290,21 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
     private fun drawWedge(c: Canvas, mv: MapView, f: PlannerFrame, w: Float, h: Float) {
         val o = px(mv, f.red)
         val mpp = metersPerPixel(mv, f)
-        val far = f.toolDof?.farLimitM?.takeIf { it.isFinite() } ?: f.toolFocusM
-        val reach = (maxOf(f.toolFocusM * 1.6, far * 1.15, (f.toolDof?.hyperfocalM ?: 0.0) * 1.15) / mpp).toFloat().coerceIn(120f, maxOf(w, h) * 3)
+        val farLimit = f.toolDof?.farLimitM?.takeIf { it.isFinite() } ?: f.toolFocusM
+        val reach = (maxOf(f.toolFocusM * 1.6, farLimit * 1.15, (f.toolDof?.hyperfocalM ?: 0.0) * 1.15) / mpp).toFloat().coerceIn(120f, maxOf(w, h) * 3)
         val left = dir(mv, f, f.toolAzimuth - f.toolHAngle / 2); val right = dir(mv, f, f.toolAzimuth + f.toolHAngle / 2)
         // Darken everything outside the wedge.
-        val wedge = Path().apply { moveTo(o.x, o.y); lineTo(o.x + left.x * reach * 4, o.y + left.y * reach * 4); lineTo(o.x + right.x * reach * 4, o.y + right.y * reach * 4); close() }
+        // Sector with rays long enough to leave the canvas (works for any field of view up to 180°).
+        val far = 2f * hypot(w.toDouble(), h.toDouble()).toFloat()
+        val wedge = Path().apply {
+            moveTo(o.x, o.y)
+            val steps = 24
+            for (i in 0..steps) {
+                val d = dir(mv, f, f.toolAzimuth - f.toolHAngle / 2 + f.toolHAngle * i / steps)
+                lineTo(o.x + d.x * far, o.y + d.y * far)
+            }
+            close()
+        }
         val outside = Path().apply { addRect(0f, 0f, w, h, Path.Direction.CW); op(wedge, Path.Op.DIFFERENCE) }
         c.drawPath(outside, paint(0x66000000, 0f, fill = true))
         val edge = paint(0xFF000000.toInt(), 3f)
@@ -362,6 +372,12 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
         }
         val path = Path().apply { moveTo(corners[0].x, corners[0].y); corners.drop(1).forEach { lineTo(it.x, it.y) }; close() }
         c.drawPath(path, paint(0x30FFFFFF, 0f, fill = true)); c.drawPath(path, paint(0xFFFFC93C.toInt(), 4f))
+        val u = com.photocapsules.ui.components.Fmt.units
+        val areaM2 = fw * fh
+        val areaTxt = if (u == com.photocapsules.core.photo.UnitSystem.METRIC) (if (areaM2 >= 10_000) String.format(java.util.Locale.US, "%.2f ha", areaM2 / 10_000) else String.format(java.util.Locale.US, "%.0f m²", areaM2))
+            else String.format(java.util.Locale.US, "%.2f acres", areaM2 / 4046.856)
+        c.drawText("Drone " + com.photocapsules.ui.components.Fmt.len(f.model.droneAltitudeM, u) + " · " + com.photocapsules.ui.components.Fmt.len(fw, u) + " × " +
+            com.photocapsules.ui.components.Fmt.len(fh, u) + " · " + areaTxt, 20f, c.height - 30f, textPaint)
         fun lerp(a: PointF, b: PointF, t: Float) = PointF(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
         val gp = paint(0xC0FFFFFF.toInt(), 2f)
         val (tl, tr, br, bl) = corners

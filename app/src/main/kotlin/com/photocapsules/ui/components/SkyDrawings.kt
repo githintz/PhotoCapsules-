@@ -22,8 +22,11 @@ import kotlin.math.min
  * 90 for waxing (lit right) — handled automatically when [rotation] is null.
  */
 @Composable
-fun MoonDisc(phaseAngle: Double, size: Dp = 56.dp, rotation: Double? = null, background: Color = Color.Transparent, modifier: Modifier = Modifier) {
-    Canvas(modifier.size(size)) { drawMoon(phaseAngle, rotation, background) }
+fun MoonDisc(phaseAngle: Double, size: Dp = 56.dp, rotation: Double? = null, background: Color = Color.Transparent, modifier: Modifier = Modifier, latitude: Double? = null) {
+    // Without an explicit orientation, show the Moon as seen from the hemisphere of [latitude]
+    // (waxing lit on the right in the north, on the left in the south).
+    val rot = rotation ?: latitude?.takeIf { it < 0 }?.let { if (((phaseAngle % 360) + 360) % 360 < 180) 270.0 else 90.0 }
+    Canvas(modifier.size(size)) { drawMoon(phaseAngle, rot, background) }
 }
 
 fun DrawScope.drawMoon(phaseAngle: Double, rotation: Double?, background: Color = Color.Transparent, center: Offset = this.center, radius: Float = min(size.width, size.height) / 2 * 0.92f) {

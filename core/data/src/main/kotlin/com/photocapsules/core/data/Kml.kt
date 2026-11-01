@@ -15,6 +15,9 @@ import javax.xml.parsers.DocumentBuilderFactory
  */
 object Kml {
     private const val NS_PC = "photocapsules"
+    /** Accepted plan dates: years 1000–3000 (the ephemerides are not meaningful far outside). */
+    const val MIN_EPOCH_MS = -30_610_224_000_000L
+    const val MAX_EPOCH_MS = 32_503_680_000_000L
 
     /** XML-escapes and drops characters that are not allowed in XML 1.0 (so backups always re-import). */
     private fun esc(s: String): String {
@@ -45,6 +48,7 @@ object Kml {
             fun data(k: String, v: Any?) { if (v != null) append("<Data name=\"$NS_PC:$k\"><value>${esc(if (v is Double) num(v) else v.toString())}</value></Data>\n") }
             data("type", "plan"); data("id", p.id); data("epochMillis", p.epochMillis); data("zoneId", p.zoneId)
             data("redAltitude", p.redPin.altitudeM); data("redOffset", p.redPin.offsetM)
+            if (p.photoUris.isNotEmpty()) data("photoUris", p.photoUris.joinToString("\n"))
             p.blackPin?.let { data("blackLat", it.latitude); data("blackLon", it.longitude); data("blackAltitude", it.altitudeM); data("blackOffset", it.offsetM) }
             append("</ExtendedData>\n")
             append("<Point><coordinates>${coords(p.redPin.longitude, p.redPin.latitude, p.redPin.altitudeM)}</coordinates></Point>\n</Placemark>\n")
@@ -114,14 +118,16 @@ object Kml {
             val name = text("name") ?: "Imported"
             val notes = text("description") ?: ""
             if (data["type"] == "plan") {
-                val when_ = data["epochMillis"]?.toLongOrNull() ?: text("when")?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() } ?: continue
+                val when_ = (data["epochMillis"]?.toLongOrNull() ?: text("when")?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() })
+                    ?.takeIf { it in MIN_EPOCH_MS..MAX_EPOCH_MS } ?: continue // years 1000–3000 only
                 val black = fnum("blackLat")?.takeIf { it in -90.0..90.0 }?.let { bl ->
                     fnum("blackLon")?.takeIf { it in -180.0..180.0 }?.let { PinState(bl, it, fnum("blackAltitude"), fnum("blackOffset") ?: 0.0) }
                 }
                 plans.add(Plan(
                     id = data["id"] ?: LibraryRepository.newId(), name = name,
                     redPin = PinState(lat, lon, fnum("redAltitude") ?: alt, fnum("redOffset") ?: 0.0),
-                    blackPin = black, epochMillis = when_, zoneId = data["zoneId"] ?: "UTC", notes = notes,
+                    blackPin = black, epochMillis = when_, zoneId = data["zoneId"]?.takeIf { z -> runCatching { java.time.ZoneId.of(z) }.isSuccess } ?: "UTC", notes = notes,
+                    photoUris = data["photoUris"]?.split('\n')?.filter { it.isNotBlank() } ?: emptyList(),
                 ))
             } else {
                 pois.add(PointOfInterest(data["id"] ?: LibraryRepository.newId(), name, lat, lon, alt, notes))

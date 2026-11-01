@@ -454,15 +454,20 @@ fun ToolSettingsDialog(m: PlannerModel, onDismiss: () -> Unit) {
         title = { Text(if (m.mode == PlannerMode.DRONE) "Drone" else m.tool.label) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                val cam = PhotoCapsulesApp.instance.settings.camera()
-                ValueRow("Camera", cam.name, sub = "Change in Settings → Default camera")
+                val cam = m.toolCamera()
+                if (m.mode == PlannerMode.DRONE) ValueRow("Drone / camera", cam.name, onClick = { edit = "dronecam" }, sub = "Tap to choose the drone")
+                else ValueRow("Camera", cam.name, sub = "Change in Settings → Default camera")
                 if (m.tool == MapTool.SUN_MOON && m.mode == PlannerMode.CAMERA) {
                     PillRow(listOf("Sun", "Moon"), m.sunMoonToolBody) { m.sunMoonToolBody = it }
                     ValueRow("Desired Sun/Moon size", Fmt.dist(m.sunMoonSizeM, units), onClick = { edit = "smsize" })
                     Text("The grey circle around the Black Pin (or Red Pin) shows the shooting distance that gives that size.", color = Palette.TextDim, fontSize = 12.sp)
                 } else {
-                    ValueRow("Focal length", String.format(Locale.US, "%.0f mm (35 mm eq. %.0f)", m.focalMm, m.focalMm * cam.cropFactor * m.teleconverter), onClick = { edit = "focal" })
-                    ValueRow("Focal length as 35 mm equivalent", String.format(Locale.US, "%.0f mm", m.focalMm * cam.cropFactor), onClick = { edit = "focal35" })
+                    val fixed = cam.fixedFocalMm
+                    if (fixed != null) ValueRow("Focal length (fixed lens)", String.format(Locale.US, "%.1f mm (35 mm eq. %.0f)", fixed, fixed * cam.cropFactor))
+                    else {
+                        ValueRow("Focal length", String.format(Locale.US, "%.0f mm (35 mm eq. %.0f)", m.focalMm, m.focalMm * cam.cropFactor * m.teleconverter), onClick = { edit = "focal" })
+                        ValueRow("Focal length as 35 mm equivalent", String.format(Locale.US, "%.0f mm", m.focalMm * cam.cropFactor), onClick = { edit = "focal35" })
+                    }
                     ValueRow("Teleconverter", if (m.teleconverter == 1.0) "None" else "×" + m.teleconverter, onClick = { edit = "tc" })
                     Check("Lock focal length (map handles only rotate)", m.focalLocked) { m.focalLocked = it }
                     if (m.tool == MapTool.DOF) ValueRow("Aperture", com.photocapsules.core.photo.Format.aperture(m.aperture) + if (m.teleconverter != 1.0) " (effective " + com.photocapsules.core.photo.Format.aperture(m.aperture * m.teleconverter) + ")" else "", onClick = { edit = "aperture" })
@@ -471,6 +476,8 @@ fun ToolSettingsDialog(m: PlannerModel, onDismiss: () -> Unit) {
                         if (m.black != null) Check("Focus at Black Pin", m.focusAtBlackPin) { m.focusAtBlackPin = it }
                     } else {
                         ValueRow("Drone altitude", Fmt.dist(m.droneAltitudeM, units), onClick = { edit = "dalt" })
+                        val fp = com.photocapsules.core.photo.DroneFrame.footprint(cam, m.toolFocalMm(), m.droneAltitudeM, m.orientation)
+                        ValueRow("Ground area", Fmt.len(fp.widthM, units) + " × " + Fmt.len(fp.heightM, units))
                         ValueRow("Composition grid", m.droneGrid.label, onClick = { edit = "grid" })
                     }
                     PillRow(listOf("Landscape", "Portrait"), m.orientation.ordinal) { m.orientation = Orientation.entries[it] }
@@ -484,8 +491,9 @@ fun ToolSettingsDialog(m: PlannerModel, onDismiss: () -> Unit) {
     )
     when (edit) {
         "focal" -> NumberDialog("Focal length (real)", m.focalMm, "mm", 1.0, 5000.0, false, { edit = null }) { m.focalMm = it }
+        "dronecam" -> com.photocapsules.ui.components.CameraPickerDialog(m.toolCamera(), { edit = null }) { c -> m.droneCameraName = c.name }
         "focal35" -> {
-            val crop = PhotoCapsulesApp.instance.settings.camera().cropFactor
+            val crop = m.toolCamera().cropFactor
             NumberDialog("35 mm equivalent focal length", m.focalMm * crop, "mm", 1.0, 20000.0, false, { edit = null }) { m.focalMm = it / crop }
         }
         "tc" -> ChoiceDialog("Teleconverter", listOf(1.0, 1.4, 1.7, 2.0), { if (it == 1.0) "None" else "×$it" }, m.teleconverter, { edit = null }) { m.teleconverter = it }
@@ -561,7 +569,7 @@ fun MeteorPickerDialog(m: PlannerModel, onDismiss: () -> Unit) {
                             Text(o.shower.name, color = Palette.Text)
                             Text("Peak " + Fmt.dateTime(o.peak, m.zone) + " · ZHR " + o.shower.zhr.toInt(), color = Palette.TextDim, fontSize = 12.sp)
                         }
-                        MoonDisc(MoonCalc.info(o.peak, m.observer).phaseAngle, 24.dp)
+                        MoonDisc(MoonCalc.info(o.peak, m.observer).phaseAngle, 24.dp, latitude = m.observer.latitude)
                     }
                 }
             }

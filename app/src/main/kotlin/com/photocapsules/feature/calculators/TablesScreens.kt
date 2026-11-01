@@ -94,7 +94,7 @@ fun DofTableScreen(onBack: () -> Unit, go: (String) -> Unit) {
     }) { p ->
         ScrollColumn(p) {
             Card {
-                camera = CameraRow("doft")
+                camera = CameraRow("doft"); FixedFocal(camera) { f = it }
                 NumberRow("Focal length", f, "mm", min = 1.0, max = 5000.0) { f = it }
             }
             PillRow(listOf("Total DoF", "Near – far limits"), mode.toInt()) { mode = it.toDouble() }

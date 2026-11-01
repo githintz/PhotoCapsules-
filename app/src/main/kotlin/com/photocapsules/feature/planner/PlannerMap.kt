@@ -72,9 +72,9 @@ fun pinDrawable(ctx: Context, color: Int, sizeDp: Int = 36): BitmapDrawable {
 class PlannerMapHolder(ctx: Context, model: PlannerModel) {
     val map = MapView(ctx)
     val overlay = PlannerOverlay(onToolAzimuth = { model.toolAzimuth = it; model.azimuthAtBlackPin = false }, onToolHAngle = { a ->
-        if (model.focalLocked) return@PlannerOverlay
-        // Changing the wedge angle changes the focal length (unless locked by Black-Pin focus).
-        val cam = PhotoCapsulesApp.instance.settings.camera()
+        val cam = model.toolCamera()
+        if (model.focalLocked || cam.fixedFocalMm != null) return@PlannerOverlay
+        // Changing the wedge angle changes the focal length.
         val (w, _) = if (model.orientation == com.photocapsules.core.photo.Orientation.LANDSCAPE) cam.sensorWidthMm to cam.sensorHeightMm else cam.sensorHeightMm to cam.sensorWidthMm
         model.focalMm = (w / (2 * kotlin.math.tan(Math.toRadians(a) / 2)) / model.teleconverter).coerceIn(1.0, 5000.0)
     })

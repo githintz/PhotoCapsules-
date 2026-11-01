@@ -186,11 +186,12 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
     }
     val shadowSource = if (sun.altitude > 0) sun else if (moon.position.altitude > 0) moon.position else null
     val shadowLen = shadowSource?.let { s -> Sky.shadowRatio(s.altitude)?.let { it * m.objectHeightM } }
-    val cam = PhotoCapsulesApp.instance.settings.camera()
+    val cam = m.toolCamera()
+    val toolFocal = m.toolFocalMm()
     val (frameW, frameH) = if (m.orientation == Orientation.LANDSCAPE) cam.sensorWidthMm to cam.sensorHeightMm else cam.sensorHeightMm to cam.sensorWidthMm
-    val hAngle = FieldOfView.angleDeg(frameW, m.focalMm * m.teleconverter)
+    val hAngle = FieldOfView.angleDeg(frameW, toolFocal * m.teleconverter)
     val focus = m.effectiveFocus()
-    val dof = if (m.tool == MapTool.DOF && focus * 1000 > m.focalMm * m.teleconverter) DepthOfField.compute(DofInput(m.focalMm, m.aperture, focus, cam.circleOfConfusionMm, m.teleconverter)) else null
+    val dof = if (m.tool == MapTool.DOF && focus * 1000 > toolFocal * m.teleconverter) DepthOfField.compute(DofInput(toolFocal, m.aperture, focus, cam.circleOfConfusionMm, m.teleconverter)) else null
     val smBody = if (m.sunMoonToolBody == 0) sun else moon.position
     val g = m.geodetics()
     val frame = PlannerFrame(
@@ -207,7 +208,7 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
         solarMap = m.solarMap, lunarEclipse = m.lunarEclipse,
         toolAzimuth = m.effectiveAzimuth(), toolHAngle = hAngle, toolFocusM = focus, toolDof = dof,
         sunMoonToolRadiusM = if (m.tool == MapTool.SUN_MOON) Terrain.distanceForSize(smBody.angularDiameterDeg, m.sunMoonSizeM) else null,
-        droneFootprint = if (m.mode == PlannerMode.DRONE) DroneFrame.footprint(cam, m.focalMm, m.droneAltitudeM, m.orientation).let { it.widthM to it.heightM } else null,
+        droneFootprint = if (m.mode == PlannerMode.DRONE) DroneFrame.footprint(cam, toolFocal, m.droneAltitudeM, m.orientation).let { it.widthM to it.heightM } else null,
         droneGrid = m.droneGrid, model = m,
     )
 
