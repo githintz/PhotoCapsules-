@@ -126,13 +126,16 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
     }
 
     // Terrain elevation + time zone lookups (debounced) when pins move.
-    // Re-keyed on "custom altitude cleared" so "Use automatic terrain altitudes" fetches the terrain at once.
-    LaunchedEffect(m.red, settings.elevationProvider, m.redCustomAltitude == null) {
+    // Re-keyed on "custom altitude cleared" / "terrain unknown" so the terrain is fetched again at once (e.g. after undo or loading a plan).
+    LaunchedEffect(m.red, settings.elevationProvider, m.redCustomAltitude == null, m.redTerrain == null) {
         delay(400)
         if (m.redCustomAltitude == null) OnlineServices.elevation(m.red.latitude, m.red.longitude)?.let { m.redTerrain = it }
+    }
+    LaunchedEffect(m.red, m.zoneAuto) {
+        delay(400)
         if (m.zoneAuto) OnlineServices.timeZone(m.red.latitude, m.red.longitude)?.let { id -> runCatching { ZoneId.of(id) }.getOrNull()?.let { m.zone = it } }
     }
-    LaunchedEffect(m.black, settings.elevationProvider, m.blackCustomAltitude == null) {
+    LaunchedEffect(m.black, settings.elevationProvider, m.blackCustomAltitude == null, m.blackTerrain == null) {
         val b = m.black ?: return@LaunchedEffect
         delay(400)
         if (m.blackCustomAltitude == null) OnlineServices.elevation(b.latitude, b.longitude)?.let { m.blackTerrain = it }

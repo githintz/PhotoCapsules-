@@ -41,6 +41,8 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
     var horizonEnabled by mutableStateOf(false)
     var horizonPin by mutableStateOf<LatLon?>(null)
     var horizonPinTerrain by mutableStateOf<Double?>(null)
+    /** Manually entered height above the horizon (overrides the Horizon Pin computation). */
+    var horizonCustomHeight by mutableStateOf<Double?>(null)
 
     var sunStyle by mutableStateOf(BodyLayerStyle.STANDARD)
     var moonStyle by mutableStateOf(BodyLayerStyle.STANDARD)
@@ -105,7 +107,8 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
     /** Height of the observer above the visible horizon point (More → Horizon). */
     val horizonHeightM: Double get() {
         if (!horizonEnabled) return 0.0
-        val hp = horizonPin ?: return 0.0
+        horizonCustomHeight?.let { return it.coerceAtLeast(0.0) }
+        horizonPin ?: return 0.0
         return (redAltitude - (horizonPinTerrain ?: 0.0)).coerceAtLeast(0.0)
     }
 
@@ -123,8 +126,17 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
         black = p
     }
 
-    fun undo() { undo.removeLastOrNull()?.let { redo.addLast(red to black); red = it.first; black = it.second; redTerrain = null; blackTerrain = null } }
-    fun redo() { redo.removeLastOrNull()?.let { undo.addLast(red to black); red = it.first; black = it.second; redTerrain = null; blackTerrain = null } }
+    fun undo() { undo.removeLastOrNull()?.let { redo.addLast(red to black); restorePins(it) } }
+    fun redo() { redo.removeLastOrNull()?.let { undo.addLast(red to black); restorePins(it) } }
+
+    /** Restores a pin pair; only a pin that actually moved loses its (now stale) terrain altitude. */
+    private fun restorePins(state: Pair<LatLon, LatLon?>) {
+        val (r, b) = state
+        if (Geodesy.haversine(red, r) > 1.0) redTerrain = null
+        val ob = black
+        if (b == null || ob == null || Geodesy.haversine(ob, b) > 1.0) blackTerrain = null
+        red = r; black = b
+    }
     val canUndo get() = undo.isNotEmpty()
     val canRedo get() = redo.isNotEmpty()
 
@@ -156,11 +168,12 @@ class PlannerModel(start: GeoPoint, startInstant: Instant, startZone: ZoneId) {
     )
 
     fun load(plan: Plan) {
+        // moveRed/moveBlack clear the terrain altitude only of a pin that really moves (> 30 m).
         moveRed(LatLon(plan.redPin.latitude, plan.redPin.longitude))
         // Saved altitudes are kept as custom altitudes so the online terrain lookup does not overwrite them.
-        redTerrain = null; redCustomAltitude = plan.redPin.altitudeM; redOffset = plan.redPin.offsetM
-        black = plan.blackPin?.let { LatLon(it.latitude, it.longitude) }
-        blackTerrain = null; blackCustomAltitude = plan.blackPin?.altitudeM; blackOffset = plan.blackPin?.offsetM ?: 0.0
+        redCustomAltitude = plan.redPin.altitudeM; redOffset = plan.redPin.offsetM
+        moveBlack(plan.blackPin?.let { LatLon(it.latitude, it.longitude) }, record = false)
+        blackCustomAltitude = plan.blackPin?.altitudeM; blackOffset = plan.blackPin?.offsetM ?: 0.0
         instant = Instant.ofEpochMilli(plan.epochMillis)
         zone = runCatching { ZoneId.of(plan.zoneId) }.getOrDefault(zone); zoneAuto = false
         centerRequest++

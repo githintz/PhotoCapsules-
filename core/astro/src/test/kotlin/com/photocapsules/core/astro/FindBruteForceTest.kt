@@ -105,4 +105,15 @@ class FindBruteForceTest {
         val r = FindSearch.search(q)
         assertTrue(r.size in 5..6, "${r.map { it.time }}")
     }
+
+    // Audit #8: a long azimuth window whose first 3 h piece has no feasible time must not merge
+    // the later match into an earlier day's result.
+    @Test fun longEquatorialWindowsKeepEveryDay() = check(
+        FindQuery(SkyBody.SUN, GeoPoint(0.0, 0.0, 0.0), Instant.parse("2026-03-16T00:00:00Z"), Instant.parse("2026-03-26T00:00:00Z"), 90.0, 1.0, 10.0, 1.0), 60)
+
+    @Test fun singaporeLowSunOverSeveralMonths() = check(
+        FindQuery(SkyBody.SUN, GeoPoint(1.35, 103.8, 0.0), Instant.parse("2026-02-01T00:00:00Z"), Instant.parse("2026-05-01T00:00:00Z"), 95.0, 3.0, 2.0, 1.0), 60)
+
+    @Test fun singaporeAzimuthOnlyEquinox() = check(
+        FindQuery(SkyBody.SUN, GeoPoint(1.35, 103.8, 0.0), Instant.parse("2026-03-18T00:00:00Z"), Instant.parse("2026-03-24T00:00:00Z"), 90.0, 0.5, null, 0.0), 60)
 }

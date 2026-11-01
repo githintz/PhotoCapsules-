@@ -23,7 +23,7 @@ class PhotoCapsulesApp : Application() {
         instance = this
         settings = SettingsStore(this)
         settings.applyGlobals()
-        library = JsonFileLibraryRepository(File(filesDir, "library.json"))
+        library = JsonFileLibraryRepository(File(filesDir, "library.json")) { com.photocapsules.widget.refreshPlansWidgets(this) }
         // osmdroid: identify the app to tile servers (OSM tile usage policy) and keep the cache in app storage.
         Configuration.getInstance().apply {
             userAgentValue = "PhotoCapsules/${BuildConfig.VERSION_NAME} (Android; com.photocapsules)"

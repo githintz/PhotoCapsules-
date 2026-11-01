@@ -57,6 +57,14 @@ fun moonBitmap(phaseAngle: Double, southern: Boolean, size: Int = 96): android.g
     return bmp
 }
 
+/** Asks the "Upcoming plans" widgets to redraw now (after plans are saved, deleted or imported). */
+fun refreshPlansWidgets(ctx: Context) {
+    val mgr = AppWidgetManager.getInstance(ctx)
+    val ids = mgr.getAppWidgetIds(android.content.ComponentName(ctx, PlansWidget::class.java))
+    if (ids.isEmpty()) return
+    ctx.sendBroadcast(android.content.Intent(ctx, PlansWidget::class.java).setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE).putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids))
+}
+
 abstract class BaseWidget : AppWidgetProvider() {
     abstract fun build(ctx: Context): RemoteViews
     // Astronomy takes tens of ms: compute off the main thread and keep the receiver alive with goAsync().

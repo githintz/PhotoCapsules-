@@ -378,6 +378,8 @@ fun AltitudesDialog(m: PlannerModel, onDismiss: () -> Unit) {
 
 @Composable
 fun HorizonDialog(m: PlannerModel, onDismiss: () -> Unit) {
+    var edit by remember { mutableStateOf<String?>(null) }
+    val u = PhotoCapsulesApp.instance.settings.current.units
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Horizon") },
@@ -391,14 +393,20 @@ fun HorizonDialog(m: PlannerModel, onDismiss: () -> Unit) {
                     })
                 }
                 if (m.horizonEnabled) {
-                    ValueRow("Height above horizon", Fmt.len(m.horizonHeightM, PhotoCapsulesApp.instance.settings.current.units))
+                    ValueRow("Height above horizon", Fmt.len(m.horizonHeightM, u) + if (m.horizonCustomHeight != null) " (custom)" else "", onClick = { edit = "height" })
+                    if (m.horizonCustomHeight == null) ValueRow("Horizon Pin altitude", m.horizonPinTerrain?.let { Fmt.len(it, u) } ?: "unknown (0 m used)", onClick = { edit = "pinAlt" })
                     ValueRow("Horizon dip", String.format(Locale.US, "%.2f°", com.photocapsules.core.geo.Terrain.apparentHorizonDip(m.horizonHeightM)))
+                    if (m.horizonCustomHeight != null) Opt("Compute from the Horizon Pin") { m.horizonCustomHeight = null }
                 }
-                Text("Drag the blue Horizon Pin to where you see the horizon (several km away). Rise/set times and azimuths are corrected for the dip of the horizon.", color = Palette.TextDim, fontSize = 12.sp)
+                Text("Drag the blue Horizon Pin to where you see the horizon (several km away), or tap a value to enter it. Rise/set times and azimuths are corrected for the dip of the horizon.", color = Palette.TextDim, fontSize = 12.sp)
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
     )
+    when (edit) {
+        "height" -> NumberDialog("Height above horizon", Fmt.toDisplay(m.horizonHeightM, u), Fmt.lenUnit(u), 0.0, Fmt.toDisplay(9000.0, u), false, { edit = null }) { m.horizonCustomHeight = Fmt.fromDisplay(it, u) }
+        "pinAlt" -> NumberDialog("Horizon Pin altitude", Fmt.toDisplay(m.horizonPinTerrain ?: 0.0, u), Fmt.lenUnit(u), Fmt.toDisplay(-430.0, u), Fmt.toDisplay(9000.0, u), true, { edit = null }) { m.horizonPinTerrain = Fmt.fromDisplay(it, u) }
+    }
 }
 
 // ---------------- Map settings / layers / tools ----------------

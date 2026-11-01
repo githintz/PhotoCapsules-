@@ -65,6 +65,8 @@ object FindSearch {
         // True while the azimuth has stayed inside the tolerance since the end of the last window
         // (a pass longer than the ±3 h window): further windows then refine that pass instead of adding results.
         var passOpen = false
+        // Whether the currently open pass already produced a result (only then may later windows replace it).
+        var passHasResult = false
         fun processWindow(center: Double) {
             if (center <= scannedUntil) return
             val inside = { t: Double -> abs(dAz(t)) <= azTol }
@@ -74,7 +76,8 @@ object FindSearch {
             val hiEdge = edge(center, center + 0.125, inside)
             val lo = maxOf(loEdge, t0, scannedUntil)
             val hi = minOf(hiEdge, t1)
-            val continuation = passOpen
+            val continuation = passOpen && passHasResult
+            if (!passOpen) passHasResult = false
             passOpen = hiEdge >= center + 0.125 && hi < t1
             scannedUntil = maxOf(scannedUntil, hi)
             if (hi < lo) return
@@ -104,6 +107,7 @@ object FindSearch {
                 if (bestErr < lastResultErr) { results[results.size - 1] = result; lastResultUt = bestUt; lastResultErr = bestErr }
             } else if (bestUt - lastResultUt > 60.0 / 86400.0) {
                 results.add(result); lastResultUt = bestUt; lastResultErr = bestErr
+                passHasResult = true
             }
         }
 
@@ -113,7 +117,7 @@ object FindSearch {
             if (cancelled()) break
             val next = minOf(ut + STEP_DAYS, t1)
             val cur = dAz(next)
-            if (abs(cur) > azTol) passOpen = false
+            if (abs(cur) > azTol) { passOpen = false; passHasResult = false }
             // Candidates: a true crossing of the target azimuth (not a ±180 wrap) or a local minimum of |Δaz|
             // (azimuth hovering near the target without crossing it).
             var crossing = (prev <= 0 && cur > 0 || prev >= 0 && cur < 0) && abs(prev - cur) < 90

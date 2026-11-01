@@ -27,7 +27,8 @@ interface LibraryRepository {
 }
 
 /** JSON-file implementation; atomic writes via temp file + rename. Thread-safe. */
-class JsonFileLibraryRepository(private val file: File) : LibraryRepository {
+/** [onChange] runs after every successful save (e.g. to refresh home-screen widgets). */
+class JsonFileLibraryRepository(private val file: File, private val onChange: (() -> Unit)? = null) : LibraryRepository {
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true }
     private val lock = Any()
 
@@ -40,12 +41,14 @@ class JsonFileLibraryRepository(private val file: File) : LibraryRepository {
         }
     }
 
-    override fun save(state: LibraryState) = synchronized(lock) {
-        file.parentFile?.mkdirs()
-        val tmp = File(file.parentFile, file.name + ".tmp")
-        tmp.writeText(json.encodeToString(LibraryState.serializer(), state))
-        if (!tmp.renameTo(file)) { file.delete(); tmp.renameTo(file) }
-        Unit
+    override fun save(state: LibraryState) {
+        synchronized(lock) {
+            file.parentFile?.mkdirs()
+            val tmp = File(file.parentFile, file.name + ".tmp")
+            tmp.writeText(json.encodeToString(LibraryState.serializer(), state))
+            if (!tmp.renameTo(file)) { file.delete(); tmp.renameTo(file) }
+        }
+        onChange?.let { runCatching { it() } }
     }
 }
 
