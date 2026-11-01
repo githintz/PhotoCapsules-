@@ -69,8 +69,10 @@ fun SkyContextBar() {
     if (dialog) SkyContextDialog(ctx) { dialog = false }
 }
 
+/** Moves by whole calendar days in the context's time zone (keeps the local clock time across DST changes). */
 private fun shift(ctx: SkyContext, seconds: Long) {
-    AppState.sky.value = ctx.copy(instant = ctx.instant.plusSeconds(seconds), live = false)
+    val days = seconds / 86400
+    AppState.sky.value = ctx.copy(instant = ctx.instant.atZone(ctx.zone).plusDays(days).toInstant(), live = false)
 }
 
 fun setSkyTime(instant: Instant) { AppState.sky.value = AppState.sky.value.copy(instant = instant, live = false) }

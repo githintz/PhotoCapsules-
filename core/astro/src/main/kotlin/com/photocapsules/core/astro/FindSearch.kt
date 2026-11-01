@@ -63,10 +63,24 @@ object FindSearch {
             val cur = dAz(next)
             // Candidates: a true crossing of the target azimuth (not a ±180 wrap) or a local minimum of |Δaz|
             // (azimuth hovering near the target without crossing it).
-            val crossing = (prev <= 0 && cur > 0 || prev >= 0 && cur < 0) && abs(prev - cur) < 90
+            var crossing = (prev <= 0 && cur > 0 || prev >= 0 && cur < 0) && abs(prev - cur) < 90
+            var crossingCenter = Double.NaN
+            // Near the zenith the azimuth can swing > 90° between coarse samples: subdivide to find a real crossing.
+            if (!crossing && abs(prev - cur) >= 90 && maxOf(pos(prevUt).altitude, pos(next).altitude) > 45.0) {
+                val n = 60
+                var a = prevUt; var da = prev
+                for (k in 1..n) {
+                    val b = prevUt + (next - prevUt) * k / n
+                    val db = dAz(b)
+                    if ((da <= 0 && db > 0 || da >= 0 && db < 0) && abs(da - db) < 90) {
+                        crossing = true; crossingCenter = bisect(a, b) { dAz(it) }; break
+                    }
+                    a = b; da = db
+                }
+            }
             val localMin = !prevPrev.isNaN() && abs(prev) <= abs(prevPrev) && abs(prev) <= abs(cur) && abs(prev) < azTol + 2.0
             var center = Double.NaN
-            if (crossing) center = bisect(prevUt, next) { dAz(it) }
+            if (crossing) center = if (!crossingCenter.isNaN()) crossingCenter else bisect(prevUt, next) { dAz(it) }
             else if (localMin) {
                 val m = goldenMin(prevPrevUt, next) { abs(dAz(it)) }
                 if (abs(dAz(m)) <= azTol) center = m

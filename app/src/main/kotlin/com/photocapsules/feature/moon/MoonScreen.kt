@@ -240,6 +240,11 @@ private fun Distances() {
             MoonCalendar.apsides(s, e) to MoonCalendar.supermoons(s, e)
         }
     }
+    // Moon phase/orientation and light type for each apsis, computed off the main thread.
+    val apsisInfo by produceState<Map<java.time.Instant, Pair<com.photocapsules.core.astro.MoonInfo, String>>>(emptyMap(), data, ctx.point) {
+        val list = data?.first ?: return@produceState
+        value = withContext(Dispatchers.Default) { list.associate { a -> a.time to (MoonCalc.info(a.time, ctx.point) to DayEvents.lightType(a.time, ctx.point).label) } }
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = { setSkyTime(ctx.instant.atZone(zone).minusYears(1).toInstant()) }) { Text("‹ ${year - 1}") }
         Text("$year", color = Palette.Text, modifier = Modifier.weight(1f), fontSize = 16.sp)
@@ -254,11 +259,11 @@ private fun Distances() {
     SectionTitle("Perigees & apogees")
     Card {
         data?.first?.forEach { a ->
-            val info = MoonCalc.info(a.time, ctx.point)
+            val (info, lightLabel) = apsisInfo[a.time] ?: return@forEach
             Row(Modifier.fillMaxWidth().clickable { setSkyTime(a.time) }.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text((if (a.perigee) "Perigee" else "Apogee") + " · " + Fmt.dateTime(a.time, zone), color = if (a.perigee) Palette.Accent else Palette.Text)
-                    Text(Fmt.km(a.distanceKm, units) + " · " + DayEvents.lightType(a.time, ctx.point).label, color = Palette.TextDim, fontSize = 12.sp)
+                    Text(Fmt.km(a.distanceKm, units) + " · " + lightLabel, color = Palette.TextDim, fontSize = 12.sp)
                 }
                 MoonDisc(info.phaseAngle, 32.dp, rotation = info.brightLimbFromZenith)
             }

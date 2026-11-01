@@ -107,6 +107,13 @@ class AstroAuthoritativeTest {
         // Spain is crossed by the path: some central-line point is within the Iberian peninsula box.
         assertTrue(data.centralLine.any { it.latitude in 38.0..44.0 && it.longitude in -9.0..3.5 })
         assertTrue(data.partialContours.getValue(0.0).size > 40)
+        // The path must reach Valencia and the Balearics (total there per local circumstances / NASA).
+        for (city in listOf(GeoPoint(39.47, -0.38), GeoPoint(39.57, 2.65), GeoPoint(38.91, 1.43))) {
+            assertEquals(EclipseType.TOTAL, Eclipses.solarLocal(ecl, city)!!.type, "$city")
+        }
+        val limits = data.umbraNorthLimit + data.umbraSouthLimit
+        assertTrue(limits.maxOf { it.longitude } > 2.6, "limits end at ${limits.maxOf { it.longitude }}")
+        assertTrue(data.centralLine.maxOf { it.longitude } > 0.0, "central line ends at ${data.centralLine.maxOf { it.longitude }}")
     }
 
     @Test fun imoShowerPeaks2026() {

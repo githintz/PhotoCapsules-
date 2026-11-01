@@ -30,10 +30,41 @@ private fun widgetLocation(ctx: Context): GeoPoint =
 
 private fun launchIntent(ctx: Context) = PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
+/** Moon phase picture (lit side right when waxing in the northern hemisphere, mirrored in the south). */
+fun moonBitmap(phaseAngle: Double, southern: Boolean, size: Int = 96): android.graphics.Bitmap {
+    val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+    val c = android.graphics.Canvas(bmp)
+    val r = size / 2f * 0.92f; val cx = size / 2f; val cy = size / 2f
+    val dark = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF2B2F3A.toInt() }
+    val lit = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFF2F0E6.toInt() }
+    c.drawCircle(cx, cy, r, dark)
+    val p = ((phaseAngle % 360) + 360) % 360
+    val waxing = p < 180
+    val litRight = waxing != southern
+    val k = kotlin.math.cos(Math.toRadians(p)).toFloat()
+    c.save()
+    if (!litRight) c.scale(-1f, 1f, cx, cy)
+    val path = android.graphics.Path()
+    path.moveTo(cx, cy - r)
+    path.arcTo(android.graphics.RectF(cx - r, cy - r, cx + r, cy + r), -90f, 180f, false)
+    for (i in 0..40) {
+        val t = Math.PI * i / 40
+        path.lineTo(cx + r * k * kotlin.math.sin(t).toFloat(), cy + r * kotlin.math.cos(t).toFloat())
+    }
+    path.close()
+    c.drawPath(path, lit)
+    c.restore()
+    return bmp
+}
+
 abstract class BaseWidget : AppWidgetProvider() {
     abstract fun build(ctx: Context): RemoteViews
+    // Astronomy takes tens of ms: compute off the main thread and keep the receiver alive with goAsync().
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        for (id in ids) runCatching { manager.updateAppWidget(id, build(context)) }
+        val pending = goAsync()
+        Thread {
+            try { for (id in ids) runCatching { manager.updateAppWidget(id, build(context)) } } finally { pending.finish() }
+        }.start()
     }
 }
 
@@ -80,6 +111,7 @@ class MoonWidget : BaseWidget() {
         val m = DayEvents.moon(LocalDate.now(zone), zone, where)
         val info = MoonCalc.info(Instant.now(), where)
         return RemoteViews(ctx.packageName, R.layout.widget_moon).apply {
+            setImageViewBitmap(R.id.w_image, moonBitmap(info.phaseAngle, where.latitude < 0))
             setTextViewText(R.id.w_title, "${info.phase.label} ${(info.illumination * 100).toInt()}%")
             setTextViewText(R.id.w_line1, "Moonrise ${t(m.moonrise?.time, zone)}  ·  Moonset ${t(m.moonset?.time, zone)}")
             setOnClickPendingIntent(R.id.w_root, launchIntent(ctx))

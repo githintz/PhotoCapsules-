@@ -71,6 +71,16 @@ PhotoCapsules/
 4. **CI**: GitHub Actions runs all core tests on every push, and the APK is built only if they pass.
 5. **Independent audit loop**: fresh-context agents re-derive and test everything and probe edge cases (polar day/night, date line, DST transitions, leap years, the Southern Hemisphere, extreme focal lengths, s ≥ H). Fixes are applied and the audit is repeated until clean.
 
+## Accuracy targets (verified in tests)
+| Quantity | Tolerance vs independent source |
+|---|---|
+| Sun/Moon az/alt | < 0.02° (PyEphem); refraction tapered to 0 below −5° |
+| Rise/set, twilights | < 1 min (USNO / PyEphem, USNO convention); horizon dip 1.76′·√h |
+| Moon phases | < 15 s (PyEphem), USNO minute rounding |
+| Equinoxes/solstices | < 1 min (USNO); ~±30 s is the limit of the truncated VSOP87 model in Astronomy Engine |
+| Eclipses | greatest eclipse < 2 min, magnitudes ±0.02 (NASA/Espenak; shadow-enlargement convention differs) |
+| Geodesy | < 1 mm (geographiclib), incl. near-antipodal |
+
 ## Milestones
 1. Scaffolding: Gradle multi-module, CI workflow, conditional Android build (`-PcoreOnly`).
 2. Core engines with tests and golden vectors.

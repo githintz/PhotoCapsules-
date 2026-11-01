@@ -36,6 +36,8 @@ data class MeteorShower(
     val driftDec: Double = 0.0,
     val profileB: Double = 0.2,
     val daytime: Boolean = false,
+    /** Antihelion Source: the radiant sits on the ecliptic 12° east of the antisolar point (IMO). */
+    val antihelion: Boolean = false,
 )
 
 data class ShowerOccurrence(
@@ -49,6 +51,8 @@ object MeteorShowers {
     private fun md(m: Int, d: Int) = MonthDay.of(m, d)
 
     val all: List<MeteorShower> = listOf(
+        // ANT: long, weak activity; radiant tied to the Sun (no single peak — λ 0° is used only to anchor the year).
+        MeteorShower("ANT", "Antihelion Source", md(12, 10), md(9, 20), 0.0, 0.0, 0.0, 30.0, 3.0, 4.0, showerClass = 2, profileB = 0.0, antihelion = true),
         MeteorShower("QUA", "Quadrantids", md(12, 28), md(1, 12), 283.15, 230.0, 49.0, 41.0, 2.1, 80.0, showerClass = 1, driftRa = 0.8, driftDec = -0.2, profileB = 2.5),
         MeteorShower("GUM", "γ-Ursae Minorids", md(1, 10), md(1, 22), 298.0, 228.0, 67.0, 31.0, 3.0, 3.0, showerClass = 4),
         MeteorShower("ACE", "α-Centaurids", md(1, 31), md(2, 20), 319.4, 211.0, -58.0, 58.0, 2.0, 6.0, showerClass = 2, driftRa = 1.0, driftDec = -0.3),
@@ -79,14 +83,14 @@ object MeteorShowers {
         MeteorShower("LEO", "Leonids", md(11, 6), md(11, 30), 235.27, 152.0, 22.0, 71.0, 2.5, 15.0, showerClass = 1, driftRa = 0.7, driftDec = -0.4, profileB = 0.4),
         MeteorShower("LMI", "Leonis Minorids", md(10, 19), md(10, 27), 211.0, 162.0, 37.0, 62.0, 3.0, 2.0, showerClass = 4, driftRa = 0.9, driftDec = -0.4),
         MeteorShower("AMO", "α-Monocerotids", md(11, 15), md(11, 25), 239.5, 118.0, 1.0, 65.0, 2.4, 5.0, variable = true, showerClass = 3, profileB = 1.0),
-        MeteorShower("NOO", "November Orionids", md(11, 13), md(12, 6), 246.0, 91.0, 16.0, 44.0, 3.0, 3.0, showerClass = 4, driftRa = 0.9),
+        MeteorShower("NOO", "November Orionids", md(11, 14), md(12, 6), 246.0, 91.0, 16.0, 41.0, 3.0, 3.0, showerClass = 4, driftRa = 0.9),
         // IMO 2026/2027 revised Phoenicid radiant (α 8°, δ −27°), maximum Dec 2.
         MeteorShower("PHO", "Phoenicids", md(11, 28), md(12, 9), 249.5, 8.0, -27.0, 18.0, 2.8, 5.0, variable = true, showerClass = 3),
         MeteorShower("PUP", "Puppid-Velids", md(12, 1), md(12, 15), 255.0, 123.0, -45.0, 44.0, 2.9, 10.0, showerClass = 2),
         MeteorShower("MON", "Monocerotids", md(11, 27), md(12, 17), 257.0, 100.0, 8.0, 41.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8),
         MeteorShower("HYD", "σ-Hydrids", md(12, 3), md(12, 20), 257.0, 125.0, 2.0, 58.0, 3.0, 7.0, showerClass = 2, driftRa = 0.7, driftDec = -0.2),
         MeteorShower("GEM", "Geminids", md(12, 4), md(12, 20), 262.2, 112.0, 33.0, 35.0, 2.6, 150.0, showerClass = 1, driftRa = 1.0, driftDec = -0.1, profileB = 0.39),
-        MeteorShower("URS", "Ursids", md(12, 17), md(12, 26), 270.7, 217.0, 76.0, 27.0, 2.9, 10.0, showerClass = 1, profileB = 0.9),
+        MeteorShower("URS", "Ursids", md(12, 17), md(12, 26), 270.7, 217.0, 76.0, 33.0, 3.0, 10.0, showerClass = 1, profileB = 0.9),
         // IMO 2026: "summarise all meteors from the (extended) COM/DLM-region under COM" – no significant activity variation.
         // Drift fitted to IMO 2026 Table 6 (COM: Jan 0 172°/+25° … Jan 30 198°/+16°); detectable until Jan 31.
         MeteorShower("COM", "Comae Berenicids (incl. Dec. Leonis Minorids)", md(12, 4), md(1, 31), 271.0, 164.0, 29.0, 65.0, 3.0, 3.0, showerClass = 4, driftRa = 0.9, driftDec = -0.35, profileB = 0.0),
@@ -152,6 +156,14 @@ object MeteorShowers {
 
     /** Radiant J2000 position at [instant], applying daily drift from the peak. */
     fun radiant(occ: ShowerOccurrence, instant: Instant): Pair<Double, Double> {
+        if (occ.shower.antihelion) {
+            // Ecliptic (J2000) longitude λ☉ + 180° + 12°, latitude 0 → equatorial J2000 (obliquity 23.4393°).
+            val l = Math.toRadians(normalizeDegrees(solarLongitudeJ2000(instant) + 192.0))
+            val eps = Math.toRadians(23.4392911)
+            val ra = Math.toDegrees(kotlin.math.atan2(kotlin.math.sin(l) * kotlin.math.cos(eps), kotlin.math.cos(l)))
+            val dec = Math.toDegrees(kotlin.math.asin(kotlin.math.sin(l) * kotlin.math.sin(eps)))
+            return normalizeDegrees(ra) to dec
+        }
         val days = (instant.toEpochMilli() - occ.peak.toEpochMilli()) / 86_400_000.0
         val ra = normalizeDegrees(occ.shower.raDeg + occ.shower.driftRa * days)
         val dec = (occ.shower.decDeg + occ.shower.driftDec * days).coerceIn(-90.0, 90.0)
@@ -165,12 +177,13 @@ object MeteorShowers {
 
     /**
      * Expected visual hourly rate for an observer: HR = ZHR·sin(h_radiant)·r^(LM−6.5).
-     * Zero when the radiant is below the horizon or it is daytime (Sun above −12° for visual observing
-     * is still counted; PhotoPills shows rates by radiant elevation).
+     * Zero when the radiant is below the horizon or the Sun is above −6° (civil twilight or daylight).
      */
     fun hourlyRate(occ: ShowerOccurrence, instant: Instant, where: GeoPoint, limitingMagnitude: Double = 6.5): Double {
         val zhr = zhrAt(occ, instant)
         if (zhr <= 0) return 0.0
+        // Visual rates need a dark sky: none while the Sun is above −6° (daytime showers are radio-only).
+        if (Sky.position(SkyBody.SUN, instant, where).trueAltitude > -6.0) return 0.0
         val h = radiantPosition(occ, instant, where).altitude
         if (h <= 0) return 0.0
         return zhr * sin(Math.toRadians(h)) * occ.shower.populationIndex.pow(limitingMagnitude - 6.5)

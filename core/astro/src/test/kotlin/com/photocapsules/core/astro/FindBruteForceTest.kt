@@ -42,6 +42,12 @@ class FindBruteForceTest {
     @Test fun moonAzimuthAndElevationBox() = check(
         FindQuery(SkyBody.MOON, GeoPoint(40.4168, -3.7038, 667.0), Instant.parse("2026-11-01T00:00:00Z"), Instant.parse("2027-11-01T00:00:00Z"), 200.0, 3.0, 45.0, 3.0), 90)
 
+    @Test fun sunNearZenithAtQuito() = check(
+        FindQuery(SkyBody.SUN, GeoPoint(-0.18, -78.47, 2850.0), Instant.parse("2026-02-01T00:00:00Z"), Instant.parse("2026-05-01T00:00:00Z"), 180.0, 2.0, 88.0, 2.0), 20)
+
+    @Test fun moonNearZenithAt10N() = check(
+        FindQuery(SkyBody.MOON, GeoPoint(10.0, 0.0, 0.0), Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z"), 180.0, 3.0, 85.0, 5.0), 30)
+
     @Test fun sunNarrowAzimuthNearEquinox() = check(
         FindQuery(SkyBody.SUN, GeoPoint(0.0, 0.0, 0.0), Instant.parse("2027-01-01T00:00:00Z"), Instant.parse("2028-01-01T00:00:00Z"), 90.0, 0.2, 60.0, 0.5), 30)
 }

@@ -116,6 +116,11 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
     val request = remember { (AppState.ar ?: ArRequest(AppState.sky.value)).also { AppState.ar = null } }
     val where: GeoPoint = request.context.point
     var instant by remember { mutableStateOf(if (request.context.live) Instant.now() else request.context.instant) }
+    // Live mode follows the clock until the user changes the time; "Now"/double-tap returns to live.
+    var live by remember { mutableStateOf(request.context.live) }
+    androidx.compose.runtime.LaunchedEffect(live) {
+        while (live) { instant = Instant.now(); kotlinx.coroutines.delay(10_000) }
+    }
     val zone = request.context.zone
     var tick by remember { mutableIntStateOf(0) }
     val tracker = remember { OrientationTracker(context, settings.useGyroscope) }
@@ -158,7 +163,7 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
             Modifier.fillMaxSize()
                 .pointerInput(Unit) {
                     detectTapGestures(
-                        onDoubleTap = { instant = Instant.now() },
+                        onDoubleTap = { instant = Instant.now(); live = true },
                         onTap = { o ->
                             when {
                                 mode == ArMode.FOV -> {
@@ -166,8 +171,8 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
                                     val p = projHolder[0]
                                     lockedFrame = if (lockedFrame != null || p == null) null else frameCorners(p, request)
                                 }
-                                o.x < size.width * 0.18f -> instant = instant.minusSeconds(86400)
-                                o.x > size.width * 0.82f -> instant = instant.plusSeconds(86400)
+                                o.x < size.width * 0.18f -> { live = false; instant = instant.atZone(zone).minusDays(1).toInstant() }
+                                o.x > size.width * 0.82f -> { live = false; instant = instant.atZone(zone).plusDays(1).toInstant() }
                             }
                         },
                     )
@@ -176,7 +181,7 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
                     var acc = 0f
                     detectHorizontalDragGestures(onDragEnd = { acc = 0f }) { _, dx ->
                         acc += dx
-                        if (kotlin.math.abs(acc) > 8f) { instant = instant.plusSeconds((-acc / 8f * 120).toLong()); acc = 0f }
+                        if (kotlin.math.abs(acc) > 8f) { live = false; instant = instant.plusSeconds((-acc / 8f * 120).toLong()); acc = 0f }
                     }
                 },
         ) {
@@ -207,7 +212,7 @@ fun ArScreen(mode: ArMode, onBack: () -> Unit) {
                     Text(mode.title, color = Color.White, fontSize = 15.sp)
                     Text(Fmt.date(instant, zone) + " " + Fmt.time(instant, zone), color = Palette.Accent, fontSize = 13.sp)
                 }
-                TextButton(onClick = { instant = Instant.now() }) { Text("Now", color = Color.White) }
+                TextButton(onClick = { instant = Instant.now(); live = true }) { Text("Now", color = Color.White) }
             }
             @Suppress("UNUSED_EXPRESSION") tick
             projHolder[0]?.let { p ->
@@ -476,10 +481,22 @@ private fun minAbsDeclination(p: Projector, where: GeoPoint, instant: Instant, f
     return decs.minBy { kotlin.math.abs(it) }
 }
 
+/** Declination result cache: recomputed only when the view moves > 0.5° or time changes > 30 s. */
+private object DecCache { var az = Double.NaN; var alt = Double.NaN; var t = 0L; var value = 0.0 }
+
+private fun cachedMinAbsDeclination(p: Projector, where: GeoPoint, instant: Instant, focalMm: Double, cameraName: String?): Double {
+    val c = p.center()
+    if (!DecCache.az.isNaN() && kotlin.math.abs(com.photocapsules.core.astro.angleDiff(c.azimuth, DecCache.az)) < 0.5 &&
+        kotlin.math.abs(c.altitude - DecCache.alt) < 0.5 && kotlin.math.abs(instant.epochSecond - DecCache.t) < 30) return DecCache.value
+    DecCache.value = minAbsDeclination(p, where, instant, focalMm, cameraName)
+    DecCache.az = c.azimuth; DecCache.alt = c.altitude; DecCache.t = instant.epochSecond
+    return DecCache.value
+}
+
 private fun DrawScope.drawSpotStars(p: Projector, sky: ArSky?, where: GeoPoint, instant: Instant, req: ArRequest) {
     sky?.let { drawNight(p, it, java.time.ZoneId.systemDefault()) }
     val cam = arCamera(req.cameraName)
-    val dec = minAbsDeclination(p, where, instant, req.focalMm, req.cameraName)
+    val dec = cachedMinAbsDeclination(p, where, instant, req.focalMm, req.cameraName)
     val pitch = cam.pixelPitchUm
     val t = pitch?.let { SpotStars.npf(req.aperture, req.focalMm, it, dec, SpotStars.Accuracy.DEFAULT) }
     val txt = String.format(Locale.US, "Min. declination %.1f°  ·  NPF %s  ·  500 rule %.1f s", dec, t?.let { String.format(Locale.US, "%.1f s", it) } ?: "—", SpotStars.rule500(cam.cropFactor, req.focalMm))

@@ -49,6 +49,7 @@ object Kml {
             data("type", "plan"); data("id", p.id); data("epochMillis", p.epochMillis); data("zoneId", p.zoneId)
             data("redAltitude", p.redPin.altitudeM); data("redOffset", p.redPin.offsetM)
             if (p.photoUris.isNotEmpty()) data("photoUris", p.photoUris.joinToString("\n"))
+            data("createdMillis", p.createdMillis); data("updatedMillis", p.updatedMillis)
             p.blackPin?.let { data("blackLat", it.latitude); data("blackLon", it.longitude); data("blackAltitude", it.altitudeM); data("blackOffset", it.offsetM) }
             append("</ExtendedData>\n")
             append("<Point><coordinates>${coords(p.redPin.longitude, p.redPin.latitude, p.redPin.altitudeM)}</coordinates></Point>\n</Placemark>\n")
@@ -103,7 +104,8 @@ object Kml {
         for (i in 0 until placemarks.length) {
             val pm = placemarks.item(i) as org.w3c.dom.Element
             fun text(tag: String): String? = pm.getElementsByTagNameNS("*", tag).let { if (it.length > 0) it.item(0).textContent.trim() else null }
-            val coords = text("coordinates")?.split(Regex("[,\\s]+"))?.filter { it.isNotBlank() } ?: continue
+            // First coordinate tuple only ("lon,lat[,alt]"); tuples are whitespace-separated (LineStrings have many).
+            val coords = text("coordinates")?.trim()?.split(Regex("\\s+"))?.firstOrNull()?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: continue
             if (coords.size < 2) continue
             val lon = coords[0].toDoubleOrNull()?.takeIf { it.isFinite() } ?: continue
             val lat = coords[1].toDoubleOrNull()?.takeIf { it.isFinite() } ?: continue
@@ -130,6 +132,8 @@ object Kml {
                     redPin = PinState(lat, lon, fnum("redAltitude") ?: alt, fnum("redOffset") ?: 0.0),
                     blackPin = black, epochMillis = when_, zoneId = data["zoneId"]?.takeIf { z -> runCatching { java.time.ZoneId.of(z) }.isSuccess } ?: "UTC", notes = notes,
                     photoUris = data["photoUris"]?.split('\n')?.filter { it.isNotBlank() } ?: emptyList(),
+                    createdMillis = data["createdMillis"]?.toLongOrNull()?.takeIf { it in MIN_EPOCH_MS..MAX_EPOCH_MS } ?: System.currentTimeMillis(),
+                    updatedMillis = data["updatedMillis"]?.toLongOrNull()?.takeIf { it in MIN_EPOCH_MS..MAX_EPOCH_MS } ?: System.currentTimeMillis(),
                 ))
             } else {
                 pois.add(PointOfInterest(data["id"] ?: LibraryRepository.newId(), name, lat, lon, alt, notes,

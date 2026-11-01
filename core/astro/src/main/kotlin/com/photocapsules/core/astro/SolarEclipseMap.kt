@@ -45,18 +45,21 @@ class SolarEclipseMap private constructor(private val samples: List<Sample>) {
         fun forEclipse(eclipse: SolarEclipse, halfSpanHours: Double = 4.0, stepMinutes: Double = 1.0): SolarEclipseMap {
             val peak = eclipse.peak.toAstroTime().ut
             val n = (2 * halfSpanHours * 60 / stepMinutes).toInt()
-            val list = (0..n).map { i ->
-                val t = Time(peak - halfSpanHours / 24.0 + i * stepMinutes / 1440.0)
-                val rot = rotationEqjEqd(t)
-                val s = rot.rotate(geoVector(Body.Sun, t, Aberration.Corrected))
-                val m = rot.rotate(geoMoon(t))
-                val gast = Math.toRadians(siderealTime(t) * 15.0)
-                val c = cos(gast); val sn = sin(gast)
-                fun ex(x: Double, y: Double) = (x * c + y * sn) * KM_PER_AU
-                fun ey(x: Double, y: Double) = (-x * sn + y * c) * KM_PER_AU
-                Sample(t.ut, ex(s.x, s.y), ey(s.x, s.y), s.z * KM_PER_AU, ex(m.x, m.y), ey(m.x, m.y), m.z * KM_PER_AU)
-            }
+            val list = (0..n).map { i -> sampleAt(peak - halfSpanHours / 24.0 + i * stepMinutes / 1440.0) }
             return SolarEclipseMap(list)
+        }
+
+        /** Earth-fixed (ECEF, km) Sun and Moon positions at UT day number [ut]. */
+        private fun sampleAt(ut: Double): Sample {
+            val t = Time(ut)
+            val rot = rotationEqjEqd(t)
+            val s = rot.rotate(geoVector(Body.Sun, t, Aberration.Corrected))
+            val m = rot.rotate(geoMoon(t))
+            val gast = Math.toRadians(siderealTime(t) * 15.0)
+            val c = cos(gast); val sn = sin(gast)
+            fun ex(x: Double, y: Double) = (x * c + y * sn) * KM_PER_AU
+            fun ey(x: Double, y: Double) = (-x * sn + y * c) * KM_PER_AU
+            return Sample(t.ut, ex(s.x, s.y), ey(s.x, s.y), s.z * KM_PER_AU, ex(m.x, m.y), ey(m.x, m.y), m.z * KM_PER_AU)
         }
 
         internal fun ecef(lat: Double, lon: Double): DoubleArray {
@@ -164,12 +167,23 @@ class SolarEclipseMap private constructor(private val samples: List<Sample>) {
         return null
     }
 
-    fun compute(eclipse: SolarEclipse, levels: List<Double> = PARTIAL_LEVELS, centralStepMinutes: Int = 3): SolarEclipseMapData {
+    fun compute(eclipse: SolarEclipse, levels: List<Double> = PARTIAL_LEVELS, centralStepMinutes: Int = 1): SolarEclipseMapData {
         val central = ArrayList<Triple<Sample, LatLonPoint, Boolean>>()
+        val hit = samples.map { axisPoint(it) != null }
         for ((i, s) in samples.withIndex()) {
-            if (i % centralStepMinutes != 0) continue
+            if (i % centralStepMinutes != 0 && !(hit[i] && (i == 0 || !hit[i - 1] || i == samples.lastIndex || !hit[i + 1]))) continue
             axisPoint(s)?.let { (p, total) -> central.add(Triple(s, p, total)) }
         }
+        // Refine both ends of the central line by bisecting between the last hit and the first miss (seconds).
+        fun refineEnd(inside: Sample, outside: Sample): Triple<Sample, LatLonPoint, Boolean>? {
+            var a = inside.ut; var b = outside.ut
+            repeat(20) { val m = (a + b) / 2; if (axisPoint(sampleAt(m)) != null) a = m else b = m }
+            val s = sampleAt(a)
+            return axisPoint(s)?.let { (p, total) -> Triple(s, p, total) }
+        }
+        val firstHit = hit.indexOfFirst { it }; val lastHit = hit.indexOfLast { it }
+        if (firstHit > 0) refineEnd(samples[firstHit], samples[firstHit - 1])?.let { central.add(0, it) }
+        if (lastHit in 0 until samples.lastIndex) refineEnd(samples[lastHit], samples[lastHit + 1])?.let { central.add(it) }
         val north = ArrayList<LatLonPoint>(); val south = ArrayList<LatLonPoint>()
         for (i in central.indices) {
             val (s, p, total) = central[i]
@@ -181,6 +195,24 @@ class SolarEclipseMap private constructor(private val samples: List<Sample>) {
                 val b = dir + side
                 outermost(p, b, 1500.0, 20.0) { q -> centralMargin(q.latitude, q.longitude, s.ut, total) }?.let { list.add(it) }
             }
+        }
+        // End caps: the umbra keeps touching the Earth near sunrise/sunset beyond the axis end points.
+        if (central.size >= 2) {
+            fun cap(endIdx: Int, otherIdx: Int, forward: Boolean) {
+                val (s, p, total) = central[endIdx]
+                val dir = bearing(central[otherIdx].second, p) // pointing outwards from the path
+                val left = ArrayList<LatLonPoint>(); val right = ArrayList<LatLonPoint>()
+                for (k in -6..6) {
+                    if (k == 0) continue
+                    val b = dir + k * 15.0
+                    outermost(p, b, 1500.0, 20.0) { q -> centralMargin(q.latitude, q.longitude, s.ut, total) }?.let { (if (k < 0) left else right).add(it) }
+                }
+                // Left of the outward direction is north-side for the path end, right is south-side (swapped at the start).
+                if (forward) { north.addAll(left.reversed()); south.addAll(right) }
+                else { north.addAll(0, right.reversed()); south.addAll(0, left) }
+            }
+            cap(central.lastIndex, central.lastIndex - 1, true)
+            cap(0, 1, false)
         }
         // North list built with bearing dir−90 — that is to the left of the direction of motion. Path moves
         // generally eastward, so left = north. Swap if the average latitude says otherwise.

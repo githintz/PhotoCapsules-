@@ -140,12 +140,44 @@ class AstroBehaviourTest {
             val o = MeteorShowers.occurrence(sh, year)
             val peak = o.peak.atZone(ZoneOffset.UTC).toLocalDate()
             val span = o.activityEnd.toEpochDay() - o.activityStart.toEpochDay()
-            assertTrue(span in 0..90, "${sh.code} $year span $span: ${o.activityStart}..${o.activityEnd}")
+            assertTrue(span in 0..(if (sh.antihelion) 290 else 90), "${sh.code} $year span $span: ${o.activityStart}..${o.activityEnd}")
             assertTrue(!peak.isBefore(o.activityStart) && !peak.isAfter(o.activityEnd), "${sh.code} $year peak $peak outside ${o.activityStart}..${o.activityEnd}")
         }
         // June Bootids are not active in February
         assertTrue(MeteorShowers.active(Instant.parse("2028-02-29T00:00:00Z")).none { it.shower.code == "JBO" })
         assertTrue(MeteorShowers.active(Instant.parse("2028-06-25T00:00:00Z")).any { it.shower.code == "JBO" })
+    }
+
+    @Test fun antihelionRadiantMatchesImoTable6() {
+        // IMO 2026 Table 6: ANT on Jan 0 at α 112°, δ +21°; Mar 5 at 177°, 0°; Jun 5 at 267°, −23°.
+        val ant = MeteorShowers.byCode("ANT")!!
+        val occ = MeteorShowers.occurrence(ant, 2026)
+        for ((date, ra, dec) in listOf(Triple("2025-12-31T00:00:00Z", 112.0, 21.0), Triple("2026-03-05T00:00:00Z", 177.0, 0.0), Triple("2026-06-05T00:00:00Z", 267.0, -23.0))) {
+            val (r, d) = MeteorShowers.radiant(occ, Instant.parse(date))
+            // ANT is a diffuse ~30°×15° radiant; IMO table values are rounded.
+            assertTrue(abs(angleDiff(r, ra)) < 2.5 && abs(d - dec) < 2.0, "$date -> $r $d")
+        }
+        assertTrue(MeteorShowers.active(Instant.parse("2026-04-15T00:00:00Z")).any { it.shower.code == "ANT" })
+        assertTrue(MeteorShowers.active(Instant.parse("2026-10-15T00:00:00Z")).none { it.shower.code == "ANT" })
+    }
+
+    @Test fun noVisualMeteorsInDaylight() {
+        val ari = MeteorShowers.occurrence(MeteorShowers.byCode("ARI")!!, 2026)
+        assertEquals(0.0, MeteorShowers.hourlyRate(ari, Instant.parse("2026-06-07T12:00:00Z"), madrid))
+        assertEquals(0.0, MeteorShowers.totalHourlyRate(Instant.parse("2026-06-07T12:00:00Z"), madrid))
+    }
+
+    @Test fun horizonDipMatchesDisplayedApparentDip() {
+        // Madrid 2026-06-21, 1000 m above the horizon: PyEphem with horizon −(34′ + 1.76′·√1000) gives 04:39:00 UT.
+        val d = DayEvents.sun(LocalDate.of(2026, 6, 21), ZoneOffset.UTC, madrid, horizonHeightM = 1000.0)
+        assertTrue(minutesBetween(d.sunrise!!.time, Instant.parse("2026-06-21T04:39:00Z")) < 0.5, "${d.sunrise!!.time}")
+        assertEquals(1.76 * kotlin.math.sqrt(1000.0) / 60, DayEvents.horizonDip(1000.0), 1e-12)
+    }
+
+    @Test fun poleAtEquinoxWithHorizonHeightIsDay() {
+        // North Pole, 18 Mar 2026, 100 m above the horizon: upper limb above −(34′ + dip) → Sun up all day.
+        val d = DayEvents.sun(LocalDate.of(2026, 3, 18), ZoneOffset.UTC, GeoPoint(90.0, 0.0), horizonHeightM = 100.0)
+        assertTrue(d.alwaysUp, "$d")
     }
 
     @Test fun comaeBerenicidsIncludesDlmRegion() {

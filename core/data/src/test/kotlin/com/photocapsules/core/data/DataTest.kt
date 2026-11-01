@@ -13,7 +13,7 @@ class DataTest {
     @Test fun kmlRoundTrip() {
         val s = LibraryState(listOf(plan), listOf(poi))
         val back = Kml.parse(Kml.toKmz(s))
-        assertEquals(plan.copy(createdMillis = back.plans[0].createdMillis, updatedMillis = back.plans[0].updatedMillis), back.plans[0])
+        assertEquals(plan, back.plans[0]) // lossless, including created/updated dates
         assertEquals(poi, back.pois[0]) // lossless, including creation date
         val withPhotos = poi.copy(id = "q2", photoUris = listOf("content://x/1"))
         assertEquals(withPhotos, Kml.parse(Kml.toKmz(LibraryState(pois = listOf(withPhotos)))).pois.single())
@@ -59,6 +59,14 @@ class DataTest {
         assertEquals(listOf("good"), back.plans.map { it.name })
         assertEquals("UTC", back.plans.single().zoneId)
         assertEquals(listOf("content://a/1", "content://a/2"), back.plans.single().photoUris)
+    }
+
+    @Test fun lineStringUsesFirstTupleOnly() {
+        val kml = """<kml><Document><Placemark><name>Track</name><LineString><coordinates>1,2 3,4 5,6</coordinates></LineString></Placemark>
+            <Placemark><name>P3</name><Point><coordinates> 7,8,9 </coordinates></Point></Placemark></Document></kml>"""
+        val s = Kml.parse(kml.toByteArray())
+        assertEquals(1.0, s.pois[0].longitude); assertEquals(2.0, s.pois[0].latitude); assertEquals(null, s.pois[0].altitudeM)
+        assertEquals(9.0, s.pois[1].altitudeM)
     }
 
     @Test fun xxeIsRejected() {

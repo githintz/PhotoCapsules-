@@ -139,7 +139,8 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
                 LightType.DAY -> 0x00000000L; LightType.GOLDEN_HOUR -> 0x40FFB347L; LightType.BLUE_HOUR -> 0x503A5BD9L
                 LightType.NAUTICAL_TWILIGHT -> 0x602B3A8CL; LightType.ASTRONOMICAL_TWILIGHT -> 0x701C2357L; LightType.NIGHT -> 0x800B0E24L
             }
-            if (col != 0L) c.drawRect(0f, 0f, w, h, paint(col.toInt(), 0f, fill = true))
+            // The canvas is rotated with the map: cover a square larger than the screen diagonal.
+            if (col != 0L) { val d = hypot(w.toDouble(), h.toDouble()).toFloat(); c.drawRect(w / 2 - d, h / 2 - d, w / 2 + d, h / 2 + d, paint(col.toInt(), 0f, fill = true)) }
         }
 
         // Eclipse layer
@@ -313,7 +314,8 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
             }
             close()
         }
-        val outside = Path().apply { addRect(0f, 0f, w, h, Path.Direction.CW); op(wedge, Path.Op.DIFFERENCE) }
+        val diag = hypot(w.toDouble(), h.toDouble()).toFloat()
+        val outside = Path().apply { addRect(w / 2 - diag, h / 2 - diag, w / 2 + diag, h / 2 + diag, Path.Direction.CW); op(wedge, Path.Op.DIFFERENCE) }
         c.drawPath(outside, paint(0x66000000, 0f, fill = true))
         val edge = paint(0xFF000000.toInt(), 3f)
         c.drawLine(o.x, o.y, o.x + left.x * reach, o.y + left.y * reach, edge)
@@ -330,7 +332,7 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
         }
         f.toolDof?.let { d ->
             arc(d.nearLimitM, 0xFF9E9E9E.toInt(), 6f); arc(d.farLimitM, 0xFF9E9E9E.toInt(), 6f); arc(d.hyperfocalM, 0xFF3F6FD8.toInt(), 4f)
-            if (d.farLimitM.isInfinite()) c.drawText("Far limit: ∞", 20f, h - 30f, textPaint)
+            if (d.farLimitM.isInfinite()) screenText(c, mv, "Far limit: ∞", 20f, h - 30f)
         }
         arc(f.toolFocusM, 0xFFFF4D4D.toInt(), 4f)
         // Handles: azimuth (centre) and FoV (edge)
@@ -340,6 +342,14 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
     }
 
     private var handleCache: Triple<PointF, PointF, PointF>? = null
+
+    /** Text at a fixed SCREEN position: undo osmdroid's map rotation (applied about the view centre). */
+    private fun screenText(c: Canvas, mv: MapView, text: String, x: Float, y: Float) {
+        c.save()
+        c.rotate(-mv.mapOrientation, mv.width / 2f, mv.height / 2f)
+        c.drawText(text, x, y, textPaint)
+        c.restore()
+    }
 
     override fun onTouchEvent(e: MotionEvent, mv: MapView): Boolean {
         val f = frame ?: return false
@@ -384,8 +394,8 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
         val areaM2 = fw * fh
         val areaTxt = if (u == com.photocapsules.core.photo.UnitSystem.METRIC) (if (areaM2 >= 10_000) String.format(java.util.Locale.US, "%.2f ha", areaM2 / 10_000) else String.format(java.util.Locale.US, "%.0f m²", areaM2))
             else String.format(java.util.Locale.US, "%.2f acres", areaM2 / 4046.856)
-        c.drawText("Drone " + com.photocapsules.ui.components.Fmt.len(f.model.droneAltitudeM, u) + " · " + com.photocapsules.ui.components.Fmt.len(fw, u) + " × " +
-            com.photocapsules.ui.components.Fmt.len(fh, u) + " · " + areaTxt, 20f, c.height - 30f, textPaint)
+        screenText(c, mv, "Drone " + com.photocapsules.ui.components.Fmt.len(f.model.droneAltitudeM, u) + " · " + com.photocapsules.ui.components.Fmt.len(fw, u) + " × " +
+            com.photocapsules.ui.components.Fmt.len(fh, u) + " · " + areaTxt, 20f, c.height - 30f)
         fun lerp(a: PointF, b: PointF, t: Float) = PointF(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
         val gp = paint(0xC0FFFFFF.toInt(), 2f)
         val (tl, tr, br, bl) = corners
