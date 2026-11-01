@@ -564,10 +564,10 @@ fun MeteorPickerDialog(m: PlannerModel, onDismiss: () -> Unit) {
         text = {
             LazyColumn(Modifier.height(420.dp)) {
                 items(list) { o ->
-                    Row(Modifier.fillMaxWidth().clickable { m.meteorCode = o.shower.code; m.meteorLayer = true; m.instant = o.peak; onDismiss() }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable { m.meteorCode = o.shower.code; m.meteorLayer = true; if (o.shower.hasPeak) m.instant = o.peak; onDismiss() }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(o.shower.name, color = Palette.Text)
-                            Text("Peak " + Fmt.dateTime(o.peak, m.zone) + " · ZHR " + o.shower.zhr.toInt(), color = Palette.TextDim, fontSize = 12.sp)
+                            Text((if (o.shower.hasPeak) "Peak " + Fmt.dateTime(o.peak, m.zone) else "No distinct maximum") + " · ZHR " + o.shower.zhr.toInt(), color = Palette.TextDim, fontSize = 12.sp)
                         }
                         MoonDisc(MoonCalc.info(o.peak, m.observer).phaseAngle, 24.dp, latitude = m.observer.latitude)
                     }

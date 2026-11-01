@@ -85,7 +85,7 @@ fun MoonScreen(onBack: () -> Unit, go: (String) -> Unit) {
         BottomActions(
             "AR" to { AppState.ar = ArRequest(AppState.sky.value); go(Routes.ar(ArMode.SUN_MOON)) },
             "Planner" to { AppState.pendingPlannerContext.value = AppState.sky.value; go(Routes.PLANNER) },
-            "Share" to { com.photocapsules.feature.common.shareText(shareCtx, "Moon information", com.photocapsules.feature.common.daySummary(AppState.sky.value, "Moon information")) },
+            "Share" to { com.photocapsules.feature.common.shareDaySummary(shareCtx, "Moon information") },
         )
     }) { p ->
         ScrollColumn(p) {

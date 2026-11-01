@@ -75,7 +75,7 @@ fun SunScreen(onBack: () -> Unit, go: (String) -> Unit) {
         BottomActions(
             "AR" to { AppState.ar = ArRequest(AppState.sky.value); go(Routes.ar(ArMode.SUN_MOON)) },
             "Planner" to { AppState.pendingPlannerContext.value = AppState.sky.value; go(Routes.PLANNER) },
-            "Share" to { com.photocapsules.feature.common.shareText(shareCtx, "Sun information", com.photocapsules.feature.common.daySummary(AppState.sky.value, "Sun information")) },
+            "Share" to { com.photocapsules.feature.common.shareDaySummary(shareCtx, "Sun information") },
         )
     }) { p ->
         ScrollColumn(p) {

@@ -57,6 +57,40 @@ object FindSearch {
         var ut = t0
         var lastResultUt = -1e9
         var scannedUntil = -1e9
+        fun processWindow(center: Double) {
+            if (center <= scannedUntil || center - lastResultUt <= 2.0 / 24.0) return
+            // Window where |Δaz| ≤ tol around the centre (search ±3 h), then scan it for feasible times.
+            // Clamp to the requested range and to what earlier windows already scanned (no duplicates).
+            val lo = maxOf(edge(center, center - 0.125) { abs(dAz(it)) <= azTol }, t0, scannedUntil)
+            val hi = minOf(edge(center, center + 0.125) { abs(dAz(it)) <= azTol }, t1)
+            scannedUntil = maxOf(scannedUntil, hi)
+            if (hi <= lo) return
+            val n = maxOf(8, minOf(400, ((hi - lo) / (20.0 / 86400.0)).toInt()))
+            var bestUt = center; var bestErr = Double.MAX_VALUE
+            for (i in 0..n) {
+                val tt = lo + (hi - lo) * i / n
+                val err = boxError(pos(tt))
+                if (err < bestErr) { bestErr = err; bestUt = tt }
+            }
+            // Local refinement around the best sample.
+            val stepW = (hi - lo) / n
+            val refined = goldenMin(maxOf(lo, bestUt - stepW), minOf(hi, bestUt + stepW)) { boxError(pos(it)) }
+            if (boxError(pos(refined)) <= bestErr) bestUt = refined
+            val p = pos(bestUt)
+            if (boxError(p) <= 1.0 + 1e-9 && bestUt >= t0 && bestUt <= t1 && bestUt - lastResultUt > 60.0 / 86400.0) {
+                val inst = Time(bestUt).toInstant()
+                results.add(
+                    FindResult(
+                        inst, p.azimuth, p.altitude, DayEvents.lightType(inst, q.where),
+                        if (q.body == SkyBody.MOON) MoonCalc.info(inst, q.where).illumination else null,
+                    )
+                )
+                lastResultUt = bestUt
+            }
+        }
+
+        // The range may start while the body is already inside the azimuth tolerance.
+        if (abs(prev) <= azTol) processWindow(t0)
         while (ut < t1 && results.size < q.maxResults) {
             if (cancelled()) break
             val next = minOf(ut + STEP_DAYS, t1)
@@ -88,34 +122,7 @@ object FindSearch {
             // Azimuth lingering inside the tolerance without crossing or a minimum (e.g. the Sun rising
             // vertically at the equator on an equinox).
             if (center.isNaN() && abs(cur) <= azTol) center = next
-            if (!center.isNaN() && center > scannedUntil && center - lastResultUt > 2.0 / 24.0) {
-                // Window where |Δaz| ≤ tol around the centre (search ±3 h), then scan it for feasible times.
-                val lo = edge(center, center - 0.125) { abs(dAz(it)) <= azTol }
-                val hi = edge(center, center + 0.125) { abs(dAz(it)) <= azTol }
-                scannedUntil = hi
-                val n = maxOf(8, minOf(400, ((hi - lo) / (20.0 / 86400.0)).toInt()))
-                var bestUt = center; var bestErr = Double.MAX_VALUE
-                for (i in 0..n) {
-                    val tt = lo + (hi - lo) * i / n
-                    val err = boxError(pos(tt))
-                    if (err < bestErr) { bestErr = err; bestUt = tt }
-                }
-                // Local refinement around the best sample.
-                val stepW = (hi - lo) / n
-                val refined = goldenMin(maxOf(lo, bestUt - stepW), minOf(hi, bestUt + stepW)) { boxError(pos(it)) }
-                if (boxError(pos(refined)) <= bestErr) bestUt = refined
-                val p = pos(bestUt)
-                if (boxError(p) <= 1.0 + 1e-9 && bestUt >= t0 && bestUt <= t1) {
-                    val inst = Time(bestUt).toInstant()
-                    results.add(
-                        FindResult(
-                            inst, p.azimuth, p.altitude, DayEvents.lightType(inst, q.where),
-                            if (q.body == SkyBody.MOON) MoonCalc.info(inst, q.where).illumination else null,
-                        )
-                    )
-                    lastResultUt = bestUt
-                }
-            }
+            if (!center.isNaN()) processWindow(center)
             prevPrev = prev; prevPrevUt = prevUt
             prev = cur; prevUt = next; ut = next
             progress((ut - t0) / (t1 - t0))

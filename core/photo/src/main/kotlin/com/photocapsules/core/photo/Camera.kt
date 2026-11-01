@@ -42,7 +42,8 @@ data class Camera(
         get() = megapixels ?: if (pixelsWide != null && pixelsHigh != null) pixelsWide.toDouble() * pixelsHigh / 1e6 else null
 
     companion object {
-        fun defaultCoc(diagonalMm: Double): Double = Math.round(diagonalMm / 1442.0 * 1000.0) / 1000.0
+        /** diagonal/1442 rounded to 0.001 mm, never below 0.001 mm (tiny custom sensors). */
+        fun defaultCoc(diagonalMm: Double): Double = maxOf(0.001, Math.round(diagonalMm / 1442.0 * 1000.0) / 1000.0)
         val FULL_FRAME_24MP = Camera("", "Full frame (36×24) 24 MP", 36.0, 24.0, 6000, 4000)
     }
 }

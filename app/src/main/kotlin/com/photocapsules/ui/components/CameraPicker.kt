@@ -76,7 +76,8 @@ private fun CustomCameraDialog(onDismiss: () -> Unit, onSave: (Camera) -> Unit) 
     var coc by remember { mutableStateOf("") }
     val wv = w.replace(',', '.').toDoubleOrNull(); val hv = h.replace(',', '.').toDoubleOrNull()
     val pxv = px.toIntOrNull(); val cocv = coc.replace(',', '.').toDoubleOrNull()
-    val valid = wv != null && hv != null && wv > 0 && hv > 0 && (px.isBlank() || (pxv != null && pxv > 0)) && (coc.isBlank() || (cocv != null && cocv > 0))
+    // Sensors smaller than 1 mm are not realistic (and would give a zero circle of confusion).
+    val valid = wv != null && hv != null && wv >= 1.0 && hv >= 1.0 && wv <= 500 && hv <= 500 && (px.isBlank() || (pxv != null && pxv > 0)) && (coc.isBlank() || (cocv != null && cocv > 0))
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Custom camera") },

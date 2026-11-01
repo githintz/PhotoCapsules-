@@ -92,7 +92,7 @@ class CombinedWidget : BaseWidget() {
         val where = widgetLocation(ctx); val zone = ZoneId.systemDefault(); val today = LocalDate.now(zone)
         val s = DayEvents.sun(today, zone, where); val m = DayEvents.moon(today, zone, where)
         val info = MoonCalc.info(Instant.now(), where)
-        val noon = today.atTime(12, 0).atZone(zone).toInstant()
+        val noon = com.photocapsules.feature.meteors.nightDate(Instant.now(), zone).atTime(12, 0).atZone(zone).toInstant()
         val gc = MilkyWay.visibility(noon, noon.plusSeconds(86400), where)
         return RemoteViews(ctx.packageName, R.layout.widget_sun).apply {
             setTextViewText(R.id.w_title, "Today · " + DayEvents.lightType(Instant.now(), where).label)
@@ -122,7 +122,7 @@ class MoonWidget : BaseWidget() {
 class MilkyWayWidget : BaseWidget() {
     override fun build(ctx: Context): RemoteViews {
         val where = widgetLocation(ctx); val zone = ZoneId.systemDefault()
-        val noon = LocalDate.now(zone).atTime(12, 0).atZone(zone).toInstant()
+        val noon = com.photocapsules.feature.meteors.nightDate(Instant.now(), zone).atTime(12, 0).atZone(zone).toInstant()
         val v = MilkyWay.visibility(noon, noon.plusSeconds(86400), where)
         val text = if (v.isEmpty()) "Galactic Center not visible tonight" else v.joinToString("  ") {
             "Visible ${t(it.start.time, zone)} (${it.start.azimuth.toInt()}°) → ${t(it.end.time, zone)} (${it.end.azimuth.toInt()}°)"

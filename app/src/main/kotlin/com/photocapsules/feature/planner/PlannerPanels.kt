@@ -234,7 +234,7 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
                 } }
             }
             occ?.let { occ ->
-                KV(occ.shower.name, "peak " + Fmt.dateShort(occ.peak, z) + " " + Fmt.time(occ.peak, z))
+                KV(occ.shower.name, if (occ.shower.hasPeak) "peak " + Fmt.dateShort(occ.peak, z) + " " + Fmt.time(occ.peak, z) else "no distinct maximum")
                 KV("Activity", Fmt.dateShort(occ.activityStart.atStartOfDay(z).toInstant(), z) + " – " + Fmt.dateShort(occ.activityEnd.atStartOfDay(z).toInstant(), z))
                 f?.radiant?.let { KV("Radiant", Fmt.az(it.azimuth) + " · el " + Fmt.deg(it.altitude)) }
             }

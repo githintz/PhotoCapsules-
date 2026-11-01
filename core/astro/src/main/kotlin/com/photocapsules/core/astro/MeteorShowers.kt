@@ -38,7 +38,10 @@ data class MeteorShower(
     val daytime: Boolean = false,
     /** Antihelion Source: the radiant sits on the ecliptic 12° east of the antisolar point (IMO). */
     val antihelion: Boolean = false,
-)
+) {
+    /** False for sources without a maximum (Antihelion Source: "see Table 6"). */
+    val hasPeak: Boolean get() = !antihelion
+}
 
 data class ShowerOccurrence(
     val shower: MeteorShower,

@@ -6,6 +6,7 @@ import com.photocapsules.core.astro.Timeline
 import com.photocapsules.data.SkyContext
 import com.photocapsules.ui.components.Fmt
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 /** Shares a plain-text summary through the system share sheet. */
 fun shareText(ctx: Context, subject: String, body: String) {
@@ -23,4 +24,13 @@ fun daySummary(c: SkyContext, title: String): String {
     for (e in events) sb.append(Fmt.time(e.time, c.zone)).append("  ").append(e.kind.label).append(e.azimuth?.let { "  @ " + Fmt.az(it) } ?: "").append('\n')
     sb.append("\nShared from PhotoCapsules")
     return sb.toString()
+}
+
+/** Builds the day summary on a background thread, then opens the share sheet. */
+fun shareDaySummary(ctx: Context, title: String) {
+    val c = com.photocapsules.data.AppState.sky.value
+    com.photocapsules.PhotoCapsulesApp.instance.appScope.launch {
+        val body = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { daySummary(c, title) }
+        shareText(ctx, title, body)
+    }
 }

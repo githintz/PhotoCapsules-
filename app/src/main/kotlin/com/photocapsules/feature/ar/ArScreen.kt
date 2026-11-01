@@ -482,19 +482,20 @@ private fun minAbsDeclination(p: Projector, where: GeoPoint, instant: Instant, f
 }
 
 /** Declination result cache: recomputed only when the view moves > 0.5° or time changes > 30 s. */
-private object DecCache { var az = Double.NaN; var alt = Double.NaN; var t = 0L; var value = 0.0 }
+private object DecCache { var az = Double.NaN; var alt = Double.NaN; var t = 0L; var key = ""; var value = 0.0 }
 
 private fun cachedMinAbsDeclination(p: Projector, where: GeoPoint, instant: Instant, focalMm: Double, cameraName: String?): Double {
     val c = p.center()
-    if (!DecCache.az.isNaN() && kotlin.math.abs(com.photocapsules.core.astro.angleDiff(c.azimuth, DecCache.az)) < 0.5 &&
+    val key = "$focalMm|$cameraName|${where.latitude},${where.longitude}"
+    if (DecCache.key == key && !DecCache.az.isNaN() && kotlin.math.abs(com.photocapsules.core.astro.angleDiff(c.azimuth, DecCache.az)) < 0.5 &&
         kotlin.math.abs(c.altitude - DecCache.alt) < 0.5 && kotlin.math.abs(instant.epochSecond - DecCache.t) < 30) return DecCache.value
     DecCache.value = minAbsDeclination(p, where, instant, focalMm, cameraName)
-    DecCache.az = c.azimuth; DecCache.alt = c.altitude; DecCache.t = instant.epochSecond
+    DecCache.az = c.azimuth; DecCache.alt = c.altitude; DecCache.t = instant.epochSecond; DecCache.key = key
     return DecCache.value
 }
 
 private fun DrawScope.drawSpotStars(p: Projector, sky: ArSky?, where: GeoPoint, instant: Instant, req: ArRequest) {
-    sky?.let { drawNight(p, it, java.time.ZoneId.systemDefault()) }
+    sky?.let { drawNight(p, it, req.context.zone) }
     val cam = arCamera(req.cameraName)
     val dec = cachedMinAbsDeclination(p, where, instant, req.focalMm, req.cameraName)
     val pitch = cam.pixelPitchUm

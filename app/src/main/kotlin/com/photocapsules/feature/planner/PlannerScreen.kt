@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.PersonPinCircle
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
@@ -257,6 +258,9 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
                             st.update { it.copy(mapType = com.photocapsules.data.MapType.entries[(it.mapType.ordinal + 1) % com.photocapsules.data.MapType.entries.size]) }
                         }
                         MapButton(Icons.Filled.Explore, "Compass", active = m.compassRotate) { m.compassRotate = !m.compassRotate }
+                        MapButton(Icons.Filled.PersonPinCircle, "My position", active = settings.showMyLocation) {
+                            PhotoCapsulesApp.instance.settings.update { it.copy(showMyLocation = !it.showMyLocation) }
+                        }
                     }
                 }
                 Row {

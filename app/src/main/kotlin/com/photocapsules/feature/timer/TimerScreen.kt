@@ -46,7 +46,7 @@ import kotlinx.coroutines.delay
 fun TimerScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
     var seconds by rememberPersisted("timer_s", 30.0)
-    AppState.timerPresetSeconds?.let { if (it.isFinite() && it > 0) seconds = Math.round(it * 10) / 10.0; AppState.timerPresetSeconds = null }
+    AppState.timerPresetSeconds?.let { if (it.isFinite() && it > 0) seconds = (Math.round(it * 10) / 10.0).coerceAtLeast(1.0); AppState.timerPresetSeconds = null }
     val st by TimerState.state.collectAsState()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(st.running) { while (st.running) { now = System.currentTimeMillis(); delay(100) } }

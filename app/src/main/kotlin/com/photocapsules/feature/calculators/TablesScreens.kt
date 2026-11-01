@@ -15,6 +15,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -80,15 +82,17 @@ fun DofTableScreen(onBack: () -> Unit, go: (String) -> Unit) {
     var sel by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val apertures = Stops.apertures(settingsState().stopScale).filter { it in 1.4..22.0 }
     lateinit var camera: Camera
+    val toastCtx = LocalContext.current
     AppScreen("DoF table", onBack, bottomBar = {
         BottomActions("AR" to {
+            if (sel == null) Toast.makeText(toastCtx, "Tap a cell of the table first", Toast.LENGTH_SHORT).show()
             sel?.let { (ri, ci) ->
                 val s = DofTables.defaultDistancesM[ri]; val n = apertures[ci]
                 if (s * 1000 > f) {
                     val r = DepthOfField.compute(DofInput(f, n, s, camera.circleOfConfusionMm))
                     AppState.ar = ArRequest(AppState.sky.value, focalMm = f, aperture = n, distancesM = listOfNotNull("Near" to r.nearLimitM, "Focus" to s, if (r.farLimitM.isFinite()) "Far" to r.farLimitM else null, "Hyperfocal" to r.hyperfocalM))
                     go(Routes.ar(ArMode.DOF))
-                }
+                } else Toast.makeText(toastCtx, "The subject is closer than the focal length", Toast.LENGTH_SHORT).show()
             }
         })
     }) { p ->
@@ -123,8 +127,10 @@ fun HyperfocalTableScreen(onBack: () -> Unit, go: (String) -> Unit) {
     var sel by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val apertures = Stops.apertures(settingsState().stopScale).filter { it in 1.4..22.0 }
     lateinit var camera: Camera
+    val toastCtx = LocalContext.current
     AppScreen("Hyperfocal table", onBack, bottomBar = {
         BottomActions("AR" to {
+            if (sel == null) Toast.makeText(toastCtx, "Tap a cell of the table first", Toast.LENGTH_SHORT).show()
             sel?.let { (ri, ci) ->
                 val h = DepthOfField.hyperfocalM(DofTables.defaultFocalsMm[ri], apertures[ci], camera.circleOfConfusionMm)
                 AppState.ar = ArRequest(AppState.sky.value, distancesM = listOf("Near (H/2)" to h / 2, "Hyperfocal" to h))
@@ -137,7 +143,7 @@ fun HyperfocalTableScreen(onBack: () -> Unit, go: (String) -> Unit) {
             val t = DofTables.hyperfocalTable(camera, apertures)
             GridTable("mm \\ f/", apertures.map { Format.trimZeros(it.toString()) },
                 DofTables.defaultFocalsMm.mapIndexed { i, fl -> Format.trimZeros(fl.toString()) to t[i].map { shortDist(it, units) } }, sel) { ri, ci -> sel = ri to ci }
-            InfoText("Hyperfocal distances in ${Fmt.lenUnit(units)} (real focal length, CoC ${String.format(Locale.US, "%.3f", camera.circleOfConfusionMm)} mm). Focusing at H gives sharpness from H/2 to infinity.")
+            InfoText("Hyperfocal distances in ${Fmt.lenUnit(units)} (real focal length, CoC ${String.format(Locale.US, "%.3f", camera.circleOfConfusionMm)} mm). Focusing at H gives sharpness from H/2 to infinity. Tap a cell, then AR to see it on the ground.")
         }
     }
 }

@@ -34,6 +34,21 @@ class FindBruteForceTest {
             if (q.altitude != null) assertTrue(abs(r.altitude - q.altitude) <= q.altitudeTolerance + 1e-6, "$r") else assertTrue(r.altitude > -1.0, "$r")
         }
         assertTrue(brute.isNotEmpty())
+        // No duplicates
+        assertTrue(found.zipWithNext().all { (a, b) -> b.time.epochSecond - a.time.epochSecond > 60 }, "duplicates in ${found.map { it.time }}")
+    }
+
+    @Test fun tropicalTurningPointHasNoDuplicates() = check(
+        FindQuery(SkyBody.SUN, GeoPoint(-5.0, 39.0, 0.0), Instant.parse("2026-12-10T00:00:00Z"), Instant.parse("2026-12-20T00:00:00Z"), 245.0, 5.0, null, 0.0), 30)
+
+    @Test fun matchAtTheEndsOfTheRangeIsFound() {
+        val madrid = GeoPoint(40.4168, -3.7038, 667.0)
+        val t = Instant.parse("2026-06-05T16:16:14Z")
+        for ((s, e) in listOf(t.minusSeconds(86400) to t.minusSeconds(180), t.plusSeconds(180) to t.plusSeconds(86400))) {
+            val r = FindSearch.search(FindQuery(SkyBody.SUN, madrid, s, e, 270.0, 2.0, null, 0.0))
+            assertTrue(r.any { kotlin.math.abs(it.time.epochSecond - t.epochSecond) < 3600 }, "range $s..$e -> ${r.map { it.time }}")
+            assertTrue(r.all { !it.time.isBefore(s) && !it.time.isAfter(e) })
+        }
     }
 
     @Test fun moonAzimuthOnlyIncludesRisesAndSets() = check(

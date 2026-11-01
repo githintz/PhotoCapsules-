@@ -67,6 +67,10 @@ import java.util.Locale
 private fun night(date: java.time.LocalDate, zone: ZoneId): Pair<Instant, Instant> =
     date.atTime(12, 0).atZone(zone).toInstant() to date.plusDays(1).atTime(12, 0).atZone(zone).toInstant()
 
+/** Date whose noon-to-noon window contains [instant] ("tonight" before noon is the night in progress). */
+fun nightDate(instant: Instant, zone: ZoneId): java.time.LocalDate =
+    instant.atZone(zone).let { z -> if (z.hour < 12) z.toLocalDate().minusDays(1) else z.toLocalDate() }
+
 /** Seconds of astronomical night without the Moon above the horizon in [start, end]. */
 fun moonlessDarkSeconds(start: Instant, end: Instant, where: GeoPoint): Double {
     var t = start; var dark = 0.0
@@ -91,7 +95,7 @@ fun MeteorScreen(onBack: () -> Unit, go: (String) -> Unit) {
             "Share" to {
                 val c = AppState.sky.value
                 val body = MeteorShowers.active(c.instant).joinToString("\n", prefix = "Active meteor showers – " + Fmt.date(c.instant, c.zone) + "\n") { o ->
-                    o.shower.name + ": peak " + Fmt.dateTime(o.peak, c.zone) + ", ZHR " + o.shower.zhr.toInt()
+                    o.shower.name + (if (o.shower.hasPeak) ": peak " + Fmt.dateTime(o.peak, c.zone) else ": no distinct maximum") + ", ZHR " + o.shower.zhr.toInt()
                 }
                 com.photocapsules.feature.common.shareText(shareCtx, "Meteor showers", body)
             },
@@ -120,18 +124,22 @@ private fun quality(occ: ShowerOccurrence, illum: Double): Double {
 
 @Composable
 private fun ShowerRow(occ: ShowerOccurrence, zone: ZoneId, where: GeoPoint, onClick: () -> Unit) {
-    val moon = remember(occ.peak, where) { MoonCalc.info(occ.peak, where) }
+    val moon by produceState<com.photocapsules.core.astro.MoonInfo?>(null, occ.peak, where) {
+        value = withContext(Dispatchers.Default) { MoonCalc.info(occ.peak, where) }
+    }
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(occ.shower.name + if (occ.shower.daytime) " (daytime)" else "", color = Palette.Text)
-            Text("${Fmt.dateShort(occ.activityStart.atStartOfDay(zone).toInstant(), zone)} – ${Fmt.dateShort(occ.activityEnd.atStartOfDay(zone).toInstant(), zone)} · peak ${Fmt.dateShort(occ.peak, zone)} ${Fmt.time(occ.peak, zone)}",
+            Text("${Fmt.dateShort(occ.activityStart.atStartOfDay(zone).toInstant(), zone)} – ${Fmt.dateShort(occ.activityEnd.atStartOfDay(zone).toInstant(), zone)} ${if (occ.shower.hasPeak) " · peak " + Fmt.dateShort(occ.peak, zone) + " " + Fmt.time(occ.peak, zone) else " · no distinct maximum"}",
                 color = Palette.TextDim, fontSize = 11.sp)
             Text("ZHR ${occ.shower.zhr.toInt()}${if (occ.shower.variable) " (variable)" else ""} · ${occ.shower.velocityKmS.toInt()} km/s · class ${listOf("I", "II", "III", "IV")[(occ.shower.showerClass - 1).coerceIn(0, 3)]}",
                 color = Palette.TextDim, fontSize = 11.sp)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            MoonDisc(moon.phaseAngle, 24.dp, latitude = where.latitude)
-            EnergyBar(quality(occ, moon.illumination))
+            moon?.let { mi ->
+                MoonDisc(mi.phaseAngle, 24.dp, latitude = where.latitude)
+                EnergyBar(quality(occ, mi.illumination))
+            }
         }
     }
 }
@@ -141,17 +149,18 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
     val ctx by AppState.sky.collectAsState()
     val zone = ctx.zone; val where = ctx.point
     val date = ctx.instant.atZone(zone).toLocalDate()
-    val (ns, ne) = night(date, zone)
+    val nd = nightDate(ctx.instant, zone)
+    val (ns, ne) = night(nd, zone)
     val active = remember(date) { MeteorShowers.active(ctx.instant) }
     val upcoming = remember(date) {
         (date.year..date.year + 1).flatMap { MeteorShowers.occurrences(it) }.filter { it.peak.isAfter(ctx.instant) && it.shower.showerClass == 1 }.take(6)
     }
     val total by produceState(0.0, ctx.instant, where) { value = withContext(Dispatchers.Default) { MeteorShowers.totalHourlyRate(ctx.instant, where) } }
     data class NightInfo(val sunset: Instant?, val sunrise: Instant?, val moonrise: Instant?, val moonset: Instant?, val gc: List<MilkyWay.Visibility>)
-    val nightInfo by produceState<NightInfo?>(null, date, where, zone) {
+    val nightInfo by produceState<NightInfo?>(null, nd, where, zone) {
         value = withContext(Dispatchers.Default) {
-            val md = DayEvents.moon(date, zone, where)
-            NightInfo(DayEvents.sun(date, zone, where).sunset?.time, DayEvents.sun(date.plusDays(1), zone, where).sunrise?.time,
+            val md = DayEvents.moon(nd, zone, where)
+            NightInfo(DayEvents.sun(nd, zone, where).sunset?.time, DayEvents.sun(nd.plusDays(1), zone, where).sunrise?.time,
                 md.moonrise?.time, md.moonset?.time, MilkyWay.visibility(ns, ne, where))
         }
     }
@@ -165,7 +174,7 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
         }
     }
     // Peak hourly rate of the night (sampled every 15 min)
-    val nightCurve by produceState<List<Triple<Instant, Double, Pair<Double, Double>>>>(emptyList(), date, where, selected) {
+    val nightCurve by produceState<List<Triple<Instant, Double, Pair<Double, Double>>>>(emptyList(), nd, where, selected) {
         value = withContext(Dispatchers.Default) {
             // Nearest occurrence (previous, this or next year) to the selected date.
             val occ = selected?.let { c -> MeteorShowers.byCode(c)?.let { s -> listOf(-1, 0, 1).map { MeteorShowers.occurrence(s, date.year + it) }.minBy { kotlin.math.abs(it.peak.epochSecond - ctx.instant.epochSecond) } } }
@@ -180,7 +189,7 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
             out
         }
     }
-    val dark by produceState(0.0, date, where) { value = withContext(Dispatchers.Default) { moonlessDarkSeconds(ns, ne, where) } }
+    val dark by produceState(0.0, nd, where) { value = withContext(Dispatchers.Default) { moonlessDarkSeconds(ns, ne, where) } }
     val moon = MoonCalc.info(ctx.instant, where)
     Card {
         Column(Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -197,7 +206,7 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
     SectionTitle("Major shower peaks")
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         upcoming.forEach { o ->
-            Column(Modifier.background(Palette.Surface, RoundedCornerShape(10.dp)).clickable { onSelect(o.shower.code); setSkyTime(o.peak) }.padding(10.dp)) {
+            Column(Modifier.background(Palette.Surface, RoundedCornerShape(10.dp)).clickable { onSelect(o.shower.code); if (o.shower.hasPeak) setSkyTime(o.peak) }.padding(10.dp)) {
                 Text(o.shower.name, color = Palette.Text, fontSize = 13.sp)
                 Text(Fmt.dateShort(o.peak, zone) + " " + Fmt.time(o.peak, zone), color = Palette.TextDim, fontSize = 11.sp)
                 Text("ZHR ${o.shower.zhr.toInt()}", color = Palette.Accent, fontSize = 11.sp)
@@ -207,7 +216,7 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
     SectionTitle("Active showers")
     Card {
         if (active.isEmpty()) ValueRow("No active showers", "")
-        active.forEach { o -> ShowerRow(o, zone, where) { onSelect(o.shower.code); setSkyTime(o.peak) } }
+        active.forEach { o -> ShowerRow(o, zone, where) { onSelect(o.shower.code); if (o.shower.hasPeak) setSkyTime(o.peak) } }
     }
     SectionTitle("Activity tonight")
     Card {
@@ -256,6 +265,6 @@ private fun MeteorCalendar(onSelect: (String) -> Unit) {
     }
     for (cls in 1..4) {
         SectionTitle("Class " + listOf("I", "II", "III", "IV")[cls - 1] + " – " + listOf("strong (> 10/h)", "moderate (2–10/h)", "variable / outbursts", "weak (< 2/h)")[cls - 1])
-        Card { list.filter { it.shower.showerClass == cls }.forEach { o -> ShowerRow(o, zone, ctx.point) { onSelect(o.shower.code); setSkyTime(o.peak) } } }
+        Card { list.filter { it.shower.showerClass == cls }.forEach { o -> ShowerRow(o, zone, ctx.point) { onSelect(o.shower.code); if (o.shower.hasPeak) setSkyTime(o.peak) } } }
     }
 }
