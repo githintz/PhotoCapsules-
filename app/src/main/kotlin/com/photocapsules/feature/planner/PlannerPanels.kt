@@ -2,6 +2,7 @@ package com.photocapsules.feature.planner
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -220,13 +221,19 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
                     modifier = Modifier.clickable { m.instant = ph.time }) }
             } ?: Text("No eclipse selected or not visible here.", color = Palette.TextDim, fontSize = 12.sp)
         }
-        else -> PanelBox("Meteor showers", { Toggle("Select", m.meteorLayer) { onMeteorPick() } }) {
+        else -> PanelBox("Meteor showers", { Toggle("Select", m.meteorLayer) { onMeteorPick() } }) { Column(Modifier.fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState())) {
             // Computed off the main thread, refreshed every 5 minutes of planner time (not on every scrub frame).
             val bucket = m.instant.epochSecond / 300
             val obs = m.observer
-            val total by androidx.compose.runtime.produceState(0.0, bucket, obs) {
-                value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { MeteorShowers.totalHourlyRate(java.time.Instant.ofEpochSecond(bucket * 300), obs) }
+            // Every active shower with its period, peak, radiant position and meteors/h (PhotoPills panel).
+            val activeRows by androidx.compose.runtime.produceState(emptyList<ActiveShowerRow>(), bucket, obs) {
+                value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    val t = java.time.Instant.ofEpochSecond(bucket * 300)
+                    MeteorShowers.active(t).map { o -> ActiveShowerRow(o, MeteorShowers.radiantPosition(o, t, obs), MeteorShowers.hourlyRate(o, t, obs)) }
+                        .sortedByDescending { it.rate }
+                }
             }
+            val total = activeRows.sumOf { it.rate }
             val code = m.meteorCode
             val occ by androidx.compose.runtime.produceState<com.photocapsules.core.astro.ShowerOccurrence?>(null, code, m.instant.atZone(z).toLocalDate()) {
                 value = code?.let { c -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
@@ -239,7 +246,23 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
                 f?.radiant?.let { KV("Radiant", Fmt.az(it.azimuth) + " · el " + Fmt.deg(it.altitude)) }
             }
             KV("Meteors/h (all active)", String.format(Locale.US, "%.0f", total), Palette.Accent)
-        }
+            if (activeRows.isEmpty()) Text("No shower active on this date.", color = Palette.TextDim, fontSize = 12.sp)
+            activeRows.forEach { r ->
+                val o = r.occ
+                Column(Modifier.fillMaxWidth().clickable { m.meteorCode = o.shower.code; m.meteorLayer = true }.padding(vertical = 3.dp)) {
+                    Row(Modifier.fillMaxWidth()) {
+                        Text("${o.shower.name} (${o.shower.code})", color = if (o.shower.code == code) Palette.Accent else Palette.Text, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Text(String.format(Locale.US, "%.0f/h", r.rate), color = Palette.Text, fontSize = 12.sp)
+                    }
+                    Text(
+                        Fmt.dateShort(o.activityStart.atStartOfDay(z).toInstant(), z) + " – " + Fmt.dateShort(o.activityEnd.atStartOfDay(z).toInstant(), z) +
+                            " · " + (if (o.shower.hasPeak) "peak " + Fmt.dateShort(o.peak, z) else "no distinct maximum") +
+                            " · radiant " + Fmt.az(r.radiant.azimuth) + " el " + Fmt.deg(r.radiant.altitude),
+                        color = Palette.TextDim, fontSize = 11.sp,
+                    )
+                }
+            }
+        } }
     }
 }
 
@@ -247,3 +270,5 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
 var pendingBlackToggle: (() -> Unit)? = null
 
 const val PANEL_COUNT = 11
+
+private data class ActiveShowerRow(val occ: com.photocapsules.core.astro.ShowerOccurrence, val radiant: com.photocapsules.core.astro.HorizontalCoord, val rate: Double)

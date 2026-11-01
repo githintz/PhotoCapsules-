@@ -29,13 +29,13 @@ object Kml {
             if (ok) clean.appendCodePoint(cp)
             i += Character.charCount(cp)
         }
-        return clean.toString().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+        return clean.toString().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("\r", "&#13;")
     }
 
     /** Plain decimal notation (no exponent), as KML expects. */
     private fun num(v: Double): String = if (!v.isFinite()) "0" else java.math.BigDecimal(v).setScale(9, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
 
-    private fun coords(lon: Double, lat: Double, alt: Double?) = if (alt != null) "${num(lon)},${num(lat)},${num(alt)}" else "${num(lon)},${num(lat)}"
+    private fun coords(lon: Double, lat: Double, alt: Double?) = if (alt != null && alt.isFinite()) "${num(lon)},${num(lat)},${num(alt)}" else "${num(lon)},${num(lat)}"
 
     fun toKml(state: LibraryState, documentName: String = "PhotoCapsules"): String = buildString {
         append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -45,7 +45,7 @@ object Kml {
             append("<description>${esc(p.notes)}</description>\n")
             append("<TimeStamp><when>${Instant.ofEpochMilli(p.epochMillis)}</when></TimeStamp>\n")
             append("<ExtendedData>\n")
-            fun data(k: String, v: Any?) { if (v != null) append("<Data name=\"$NS_PC:$k\"><value>${esc(if (v is Double) num(v) else v.toString())}</value></Data>\n") }
+            fun data(k: String, v: Any?) { if (v != null && !(v is Double && !v.isFinite())) append("<Data name=\"$NS_PC:$k\"><value>${esc(if (v is Double) num(v) else v.toString())}</value></Data>\n") }
             data("type", "plan"); data("id", p.id); data("epochMillis", p.epochMillis); data("zoneId", p.zoneId)
             data("redAltitude", p.redPin.altitudeM); data("redOffset", p.redPin.offsetM)
             if (p.photoUris.isNotEmpty()) data("photoUris", p.photoUris.joinToString("\n"))
@@ -103,7 +103,8 @@ object Kml {
         val plans = ArrayList<Plan>(); val pois = ArrayList<PointOfInterest>()
         for (i in 0 until placemarks.length) {
             val pm = placemarks.item(i) as org.w3c.dom.Element
-            fun text(tag: String): String? = pm.getElementsByTagNameNS("*", tag).let { if (it.length > 0) it.item(0).textContent.trim() else null }
+            fun rawText(tag: String): String? = pm.getElementsByTagNameNS("*", tag).let { if (it.length > 0) it.item(0).textContent else null }
+            fun text(tag: String): String? = rawText(tag)?.trim()
             // First coordinate tuple only ("lon,lat[,alt]"); tuples are whitespace-separated (LineStrings have many).
             val coords = text("coordinates")?.trim()?.split(Regex("\\s+"))?.firstOrNull()?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: continue
             if (coords.size < 2) continue
@@ -119,8 +120,10 @@ object Kml {
                 data[d.getAttribute("name").removePrefix("$NS_PC:")] = v
             }
             fun fnum(k: String): Double? = data[k]?.toDoubleOrNull()?.takeIf { it.isFinite() }
-            val name = text("name") ?: "Imported"
-            val notes = text("description") ?: ""
+            // Our own backups keep names/notes verbatim (lossless); other apps' placemarks are trimmed.
+            val own = data["type"] == "plan" || data["type"] == "poi"
+            val name = (if (own) rawText("name") else text("name")) ?: "Imported"
+            val notes = (if (own) rawText("description") else text("description")) ?: ""
             if (data["type"] == "plan") {
                 val when_ = (data["epochMillis"]?.toLongOrNull() ?: text("when")?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() })
                     ?.takeIf { it in MIN_EPOCH_MS..MAX_EPOCH_MS } ?: continue // years 1000–3000 only

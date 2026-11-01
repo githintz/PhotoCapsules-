@@ -74,6 +74,7 @@ import com.photocapsules.ui.components.ValueRow
 import com.photocapsules.ui.theme.Palette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -145,10 +146,13 @@ fun FindDialog(m: PlannerModel, mapCenter: () -> LatLon?, onPickWithAr: () -> Un
                 if (arTarget != null) Text("Target set from AR view", color = Palette.Green, fontSize = 12.sp)
                 if (progress >= 0f && results == null) LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(8.dp))
                 results?.let { list ->
-                    Text("${list.size} results", color = Palette.TextDim, modifier = Modifier.padding(6.dp))
+                    val capped = list.size >= FindQuery.DEFAULT_MAX_RESULTS
+                    Text("${list.size} results" + (if (capped) " (limit reached: the search stopped on ${Fmt.date(list.last().time, m.zone)})" else "") +
+                        (if (list.size > SHOWN_RESULTS) " · showing the first $SHOWN_RESULTS in this order" else ""),
+                        color = if (capped) Palette.Sunset else Palette.TextDim, modifier = Modifier.padding(6.dp))
                     PillRow(listOf("Date", "Az", "El", "Phase"), sortBy) { sortBy = it }
                     val sorted = when (sortBy) { 1 -> list.sortedBy { it.azimuth }; 2 -> list.sortedBy { it.altitude }; 3 -> list.sortedByDescending { it.moonIllumination ?: 0.0 }; else -> list }
-                    sorted.take(300).forEach { r ->
+                    sorted.take(SHOWN_RESULTS).forEach { r ->
                         Row(Modifier.fillMaxWidth().clickable { m.instant = r.time; job?.cancel(); onDismiss() }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(Fmt.dateTime(r.time, m.zone), color = Palette.Text, fontSize = 13.sp)
@@ -162,11 +166,13 @@ fun FindDialog(m: PlannerModel, mapCenter: () -> LatLon?, onPickWithAr: () -> Un
         },
         confirmButton = {
             TextButton(onClick = {
+                job?.cancel()
                 results = null; progress = 0f
                 val q = FindQuery(if (body == 0) SkyBody.SUN else SkyBody.MOON, m.observer, start, start.plusSeconds(ranges[rangeIdx].second * 86400), az, azTol, if (useAlt) alt else null, altTol)
                 job = scope.launch {
-                    val r = withContext(Dispatchers.Default) { FindSearch.search(q, cancelled = { job?.isCancelled == true }) { p -> progress = p.toFloat() } }
-                    results = r
+                    // Each search checks its own coroutine, so a superseded search stops and never writes state.
+                    val r = withContext(Dispatchers.Default) { FindSearch.search(q, cancelled = { !isActive }) { p -> if (isActive) progress = p.toFloat() } }
+                    if (isActive) results = r
                 }
             }) { Text("Search") }
         },
@@ -578,3 +584,5 @@ fun MeteorPickerDialog(m: PlannerModel, onDismiss: () -> Unit) {
         dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
 }
+
+private const val SHOWN_RESULTS = 500

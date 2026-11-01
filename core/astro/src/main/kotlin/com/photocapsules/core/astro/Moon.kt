@@ -1,6 +1,7 @@
 package com.photocapsules.core.astro
 
 import io.github.cosinekitty.astronomy.Body
+import io.github.cosinekitty.astronomy.Time
 import io.github.cosinekitty.astronomy.illumination
 import io.github.cosinekitty.astronomy.moonPhase
 import io.github.cosinekitty.astronomy.searchMoonPhase
@@ -61,17 +62,28 @@ data class MoonInfo(
 object MoonCalc {
     const val SYNODIC_MONTH = 29.530588853
 
+    /** Cached lunation [new Moon, next new Moon) in UT days: scrubbing the time reuses it instead of searching again. */
+    @Volatile private var lunation: DoubleArray? = null
+
+    private fun ageDays(t: Time, expectedAge: Double): Double {
+        lunation?.let { (a, b) -> if (t.ut >= a && t.ut < b) return t.ut - a }
+        // Previous new Moon: search forward from slightly before the expected time.
+        val newMoon = searchMoonPhase(0.0, t.addDays(-expectedAge - 2.0), 4.0)
+            ?.let { if (it.ut > t.ut) searchMoonPhase(0.0, t.addDays(-expectedAge - 32.0), 4.0) else it }
+            ?: return expectedAge
+        val next = searchMoonPhase(0.0, newMoon.addDays(20.0), 15.0)
+        if (next != null && next.ut > t.ut) lunation = doubleArrayOf(newMoon.ut, next.ut)
+        return t.ut - newMoon.ut
+    }
+
     fun info(instant: Instant, where: GeoPoint): MoonInfo {
         val t = instant.toAstroTime()
         val pos = Sky.position(SkyBody.MOON, t, where)
         val sun = Sky.position(SkyBody.SUN, t, where)
         val phase = MoonCalendar.apparentElongation(t)
         val illum = illumination(Body.Moon, t).phaseFraction
-        // Previous new Moon: search forward from slightly before the expected time.
         val expectedAge = phase / 360.0 * SYNODIC_MONTH
-        val newMoon = searchMoonPhase(0.0, t.addDays(-expectedAge - 2.0), 4.0)
-            ?.let { if (it.ut > t.ut) searchMoonPhase(0.0, t.addDays(-expectedAge - 32.0), 4.0) else it }
-        val age = newMoon?.let { t.ut - it.ut } ?: expectedAge
+        val age = ageDays(t, expectedAge)
         val a0 = Math.toRadians(sun.raHours * 15); val d0 = Math.toRadians(sun.decDeg)
         val a = Math.toRadians(pos.raHours * 15); val d = Math.toRadians(pos.decDeg)
         val chi = Math.toDegrees(atan2(cos(d0) * sin(a0 - a), sin(d0) * cos(d) - cos(d0) * sin(d) * cos(a0 - a)))

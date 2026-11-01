@@ -15,8 +15,10 @@ data class FindQuery(
     /** Desired apparent altitude, or null to ignore altitude ("at azimuth" mode; body must be above −1°). */
     val altitude: Double?,
     val altitudeTolerance: Double,
-    val maxResults: Int = 500,
-)
+    val maxResults: Int = DEFAULT_MAX_RESULTS,
+) {
+    companion object { const val DEFAULT_MAX_RESULTS = 5000 }
+}
 
 data class FindResult(
     val time: Instant,
@@ -34,13 +36,15 @@ data class FindResult(
  */
 object FindSearch {
     private const val STEP_DAYS = 15.0 / 1440.0
+    private const val EDGE_STEP_DAYS = 4.0 / 1440.0
 
     fun search(q: FindQuery, cancelled: () -> Boolean = { false }, progress: (Double) -> Unit = {}): List<FindResult> {
         require(q.azimuthTolerance >= 0 && q.altitudeTolerance >= 0)
         val t0 = q.start.toAstroTime().ut; val t1 = q.end.toAstroTime().ut
         if (t1 <= t0) return emptyList()
-        val azTol = maxOf(q.azimuthTolerance, 1e-6)
-        val altTol = maxOf(q.altitudeTolerance, 1e-6)
+        // A zero tolerance means "exact": use 0.0001° (0.36″), far below what the app can display, so windows never collapse.
+        val azTol = maxOf(q.azimuthTolerance, 1e-4)
+        val altTol = maxOf(q.altitudeTolerance, 1e-4)
         val results = ArrayList<FindResult>()
         fun pos(ut: Double) = Sky.position(q.body, Time(ut), q.where)
         fun dAz(ut: Double) = angleDiff(pos(ut).azimuth, q.azimuth)
@@ -56,36 +60,50 @@ object FindSearch {
         var prevPrev = Double.NaN
         var ut = t0
         var lastResultUt = -1e9
+        var lastResultErr = Double.MAX_VALUE
         var scannedUntil = -1e9
+        // True while the azimuth has stayed inside the tolerance since the end of the last window
+        // (a pass longer than the ±3 h window): further windows then refine that pass instead of adding results.
+        var passOpen = false
         fun processWindow(center: Double) {
-            if (center <= scannedUntil || center - lastResultUt <= 2.0 / 24.0) return
+            if (center <= scannedUntil) return
+            val inside = { t: Double -> abs(dAz(t)) <= azTol }
             // Window where |Δaz| ≤ tol around the centre (search ±3 h), then scan it for feasible times.
             // Clamp to the requested range and to what earlier windows already scanned (no duplicates).
-            val lo = maxOf(edge(center, center - 0.125) { abs(dAz(it)) <= azTol }, t0, scannedUntil)
-            val hi = minOf(edge(center, center + 0.125) { abs(dAz(it)) <= azTol }, t1)
+            val loEdge = edge(center, center - 0.125, inside)
+            val hiEdge = edge(center, center + 0.125, inside)
+            val lo = maxOf(loEdge, t0, scannedUntil)
+            val hi = minOf(hiEdge, t1)
+            val continuation = passOpen
+            passOpen = hiEdge >= center + 0.125 && hi < t1
             scannedUntil = maxOf(scannedUntil, hi)
-            if (hi <= lo) return
-            val n = maxOf(8, minOf(400, ((hi - lo) / (20.0 / 86400.0)).toInt()))
-            var bestUt = center; var bestErr = Double.MAX_VALUE
+            if (hi < lo) return
+            val n = if (hi > lo) maxOf(8, minOf(400, ((hi - lo) / (20.0 / 86400.0)).toInt())) else 1
+            var bestUt = center.coerceIn(lo, hi); var bestErr = boxError(pos(bestUt))
             for (i in 0..n) {
                 val tt = lo + (hi - lo) * i / n
                 val err = boxError(pos(tt))
                 if (err < bestErr) { bestErr = err; bestUt = tt }
             }
             // Local refinement around the best sample.
-            val stepW = (hi - lo) / n
-            val refined = goldenMin(maxOf(lo, bestUt - stepW), minOf(hi, bestUt + stepW)) { boxError(pos(it)) }
-            if (boxError(pos(refined)) <= bestErr) bestUt = refined
+            if (hi > lo) {
+                val stepW = (hi - lo) / n
+                val refined = goldenMin(maxOf(lo, bestUt - stepW), minOf(hi, bestUt + stepW)) { boxError(pos(it)) }
+                val refinedErr = boxError(pos(refined))
+                if (refinedErr <= bestErr) { bestUt = refined; bestErr = refinedErr }
+            }
+            if (bestErr > 1.0 + 1e-9 || bestUt < t0 || bestUt > t1) return
             val p = pos(bestUt)
-            if (boxError(p) <= 1.0 + 1e-9 && bestUt >= t0 && bestUt <= t1 && bestUt - lastResultUt > 60.0 / 86400.0) {
-                val inst = Time(bestUt).toInstant()
-                results.add(
-                    FindResult(
-                        inst, p.azimuth, p.altitude, DayEvents.lightType(inst, q.where),
-                        if (q.body == SkyBody.MOON) MoonCalc.info(inst, q.where).illumination else null,
-                    )
-                )
-                lastResultUt = bestUt
+            val inst = Time(bestUt).toInstant()
+            val result = FindResult(
+                inst, p.azimuth, p.altitude, DayEvents.lightType(inst, q.where),
+                if (q.body == SkyBody.MOON) MoonCalc.info(inst, q.where).illumination else null,
+            )
+            if (continuation && results.isNotEmpty()) {
+                // Same long pass as the previous result: keep the better of the two.
+                if (bestErr < lastResultErr) { results[results.size - 1] = result; lastResultUt = bestUt; lastResultErr = bestErr }
+            } else if (bestUt - lastResultUt > 60.0 / 86400.0) {
+                results.add(result); lastResultUt = bestUt; lastResultErr = bestErr
             }
         }
 
@@ -95,6 +113,7 @@ object FindSearch {
             if (cancelled()) break
             val next = minOf(ut + STEP_DAYS, t1)
             val cur = dAz(next)
+            if (abs(cur) > azTol) passOpen = false
             // Candidates: a true crossing of the target azimuth (not a ±180 wrap) or a local minimum of |Δaz|
             // (azimuth hovering near the target without crossing it).
             var crossing = (prev <= 0 && cur > 0 || prev >= 0 && cur < 0) && abs(prev - cur) < 90
@@ -144,19 +163,31 @@ object FindSearch {
 
     private fun bisect(a0: Double, b0: Double, f: (Double) -> Double): Double {
         var a = a0; var b = b0; var fa = f(a)
-        repeat(30) {
+        repeat(42) {
             val m = (a + b) / 2; val fm = f(m)
             if ((fa <= 0) == (fm <= 0)) { a = m; fa = fm } else b = m
         }
         return (a + b) / 2
     }
 
-    /** Farthest point from [inside] towards [limit] where [pred] still holds (assumes a single transition). */
+    /**
+     * Farthest point from [inside] towards [limit] up to which [pred] holds continuously: steps outward
+     * (so a second, separate pass inside the ±limit span is not swallowed), then bisects the transition.
+     */
     private fun edge(inside: Double, limit: Double, pred: (Double) -> Boolean): Double {
-        if (pred(limit)) return limit
-        var a = inside; var b = limit
-        repeat(25) { val m = (a + b) / 2; if (pred(m)) a = m else b = m }
-        return a
+        val span = limit - inside
+        val steps = maxOf(1, kotlin.math.ceil(abs(span) / EDGE_STEP_DAYS).toInt())
+        var a = inside
+        for (k in 1..steps) {
+            val b = if (k == steps) limit else inside + span * k / steps
+            if (!pred(b)) {
+                var lo = a; var hi = b
+                repeat(45) { val m = (lo + hi) / 2; if (pred(m)) lo = m else hi = m }
+                return lo
+            }
+            a = b
+        }
+        return limit
     }
 
 }

@@ -80,7 +80,6 @@ object MeteorShowers {
         MeteorShower("DRA", "Draconids", md(10, 6), md(10, 10), 195.4, 263.0, 56.0, 20.0, 2.6, 5.0, variable = true, showerClass = 3, profileB = 1.0),
         MeteorShower("EGE", "ε-Geminids", md(10, 14), md(10, 27), 205.0, 102.0, 27.0, 70.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8),
         MeteorShower("ORI", "Orionids", md(10, 2), md(11, 7), 208.0, 95.0, 16.0, 66.0, 2.5, 20.0, showerClass = 1, driftRa = 0.7, driftDec = 0.1, profileB = 0.12),
-        MeteorShower("EOR", "ε-Orionids", md(10, 2), md(11, 2), 208.0, 92.0, 13.0, 66.0, 2.5, 3.0, showerClass = 4, driftRa = 0.7),
         MeteorShower("STA", "Southern Taurids", md(9, 20), md(11, 20), 223.0, 52.0, 15.0, 27.0, 2.3, 5.0, showerClass = 2, driftRa = 0.8, driftDec = 0.3, profileB = 0.03),
         MeteorShower("NTA", "Northern Taurids", md(10, 20), md(12, 10), 230.0, 58.0, 22.0, 29.0, 2.3, 5.0, showerClass = 2, driftRa = 0.9, driftDec = 0.2, profileB = 0.03),
         MeteorShower("LEO", "Leonids", md(11, 6), md(11, 30), 235.27, 152.0, 22.0, 71.0, 2.5, 15.0, showerClass = 1, driftRa = 0.7, driftDec = -0.4, profileB = 0.4),

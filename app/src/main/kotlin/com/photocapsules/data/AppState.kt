@@ -28,6 +28,8 @@ data class ArRequest(
     val frameVAngleDeg: Double? = null,
     /** Camera chosen on the calling calculator (null = default camera). */
     val cameraName: String? = null,
+    /** Spot Stars: use the full ("Accurate") NPF rule, as chosen on the calculator. */
+    val npfAccurate: Boolean = false,
 )
 
 object AppState {

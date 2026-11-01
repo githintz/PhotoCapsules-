@@ -65,4 +65,44 @@ class FindBruteForceTest {
 
     @Test fun sunNarrowAzimuthNearEquinox() = check(
         FindQuery(SkyBody.SUN, GeoPoint(0.0, 0.0, 0.0), Instant.parse("2027-01-01T00:00:00Z"), Instant.parse("2028-01-01T00:00:00Z"), 90.0, 0.2, 60.0, 0.5), 30)
+
+    // Audit #7: zero azimuth tolerance must still report exact crossings.
+    @Test fun zeroToleranceNearZenithIsFound() {
+        val q = FindQuery(SkyBody.SUN, GeoPoint(0.3404, 83.894, 0.0), Instant.parse("2026-03-19T05:00:00Z"), Instant.parse("2026-03-19T08:00:00Z"), 224.857, 0.0, 88.772, 0.5)
+        val r = FindSearch.search(q)
+        assertTrue(r.any { abs(it.time.epochSecond - Instant.parse("2026-03-19T06:35:41Z").epochSecond) < 5 }, "${r.map { it.time }}")
+    }
+
+    @Test fun zeroToleranceFindsEveryCrossing() {
+        var total = 0
+        for ((body, where) in listOf(SkyBody.SUN to GeoPoint(35.0, 10.0, 0.0), SkyBody.MOON to GeoPoint(-33.9, 151.2, 0.0), SkyBody.MOON to GeoPoint(52.0, -1.0, 0.0))) {
+            for (az in listOf(95.0, 180.0, 250.0)) {
+                val s = Instant.parse("2026-05-01T00:00:00Z"); val e = Instant.parse("2026-05-08T00:00:00Z")
+                // Brute force: sign changes of Δaz (not ±180 wraps) with the body above −1°, at 30 s steps.
+                var crossings = 0
+                var t = s; var prev = angleDiff(Sky.position(body, t, where).azimuth, az)
+                while (t.isBefore(e)) {
+                    val n = t.plusSeconds(30); val p = Sky.position(body, n, where); val d = angleDiff(p.azimuth, az)
+                    if ((prev <= 0 && d > 0 || prev >= 0 && d < 0) && abs(prev - d) < 90 && p.altitude > -1.0) crossings++
+                    prev = d; t = n
+                }
+                val found = FindSearch.search(FindQuery(body, where, s, e, az, 0.0, null, 0.0))
+                assertTrue(abs(found.size - crossings) <= 1, "$body $where az=$az brute=$crossings found=${found.size}")
+                total += crossings
+                assertTrue(found.all { abs(angleDiff(it.azimuth, az)) < 1e-3 })
+            }
+        }
+        assertTrue(total > 30, "total=$total")
+    }
+
+    // Audit #7: two separate passes less than 3 h apart must both be reported.
+    @Test fun twoPassesCloseTogetherAreBothReported() = check(
+        FindQuery(SkyBody.SUN, GeoPoint(20.446, 116.476, 0.0), Instant.parse("2026-07-13T02:18:00Z"), Instant.parse("2026-07-14T18:56:00Z"), 281.335, 2.0, null, 0.0), 20)
+
+    // A long pass (wide tolerance) still yields a single result per pass.
+    @Test fun widePassGivesOneResultPerDay() {
+        val q = FindQuery(SkyBody.SUN, GeoPoint(70.0, 20.0, 0.0), Instant.parse("2026-06-10T00:00:00Z"), Instant.parse("2026-06-15T00:00:00Z"), 180.0, 60.0, null, 0.0)
+        val r = FindSearch.search(q)
+        assertTrue(r.size in 5..6, "${r.map { it.time }}")
+    }
 }

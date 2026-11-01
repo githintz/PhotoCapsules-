@@ -333,4 +333,19 @@ class AstroBehaviourTest {
         assertTrue(ev.zipWithNext().all { (a, b) -> a.time <= b.time })
         assertTrue(ev.any { it.kind == EventKind.SUNRISE } && ev.any { it.kind == EventKind.GC_VISIBLE })
     }
+
+    // The lunation cache must give the same age for times visited in any order (scrubbing back and forth).
+    @Test fun moonAgeCacheIsOrderIndependent() {
+        val news = MoonCalendar.phases(java.time.Instant.parse("2025-11-01T00:00:00Z"), java.time.Instant.parse("2028-02-01T00:00:00Z"))
+            .filter { it.phase == PrincipalPhase.NEW }.map { it.time }
+        val rnd = java.util.Random(7)
+        val where = GeoPoint(40.0, -3.0, 0.0)
+        repeat(300) {
+            val t = java.time.Instant.parse("2026-01-01T00:00:00Z").plusSeconds((rnd.nextDouble() * 2 * 365 * 86400).toLong())
+            val prevNew = news.last { !it.isAfter(t) }
+            val expected = (t.epochSecond - prevNew.epochSecond) / 86400.0
+            val age = MoonCalc.info(t, where).ageDays
+            assertTrue(kotlin.math.abs(age - expected) < 0.01, "t=$t age=$age expected=$expected")
+        }
+    }
 }

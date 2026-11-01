@@ -52,6 +52,19 @@ class DataTest {
         assertEquals(null, Kml.parse(text.toByteArray()).plans.single().blackPin)
     }
 
+    // Audit #7: names/notes are kept verbatim (whitespace, CR/LF) and a non-finite altitude stays unknown.
+    @Test fun whitespaceAndNonFiniteAltitudeRoundTrip() {
+        val p = plan.copy(name = "  Spaced name ", notes = "  line1\r\n\tline2\n  ", redPin = PinState(40.4, -3.7, Double.NaN, 1.0))
+        val q = PointOfInterest("w", " POI ", 1.0, 2.0, Double.POSITIVE_INFINITY, "\n notes \n")
+        val back = Kml.parse(Kml.toKmz(LibraryState(listOf(p), listOf(q))))
+        assertEquals("  Spaced name ", back.plans[0].name)
+        assertEquals("  line1\r\n\tline2\n  ", back.plans[0].notes)
+        assertEquals(null, back.plans[0].redPin.altitudeM)
+        assertEquals(" POI ", back.pois[0].name)
+        assertEquals("\n notes \n", back.pois[0].notes)
+        assertEquals(null, back.pois[0].altitudeM)
+    }
+
     @Test fun absurdDatesAndZonesAreRejectedOrFixed() {
         val bad = Plan("b", "bad", PinState(1.0, 2.0), null, Long.MAX_VALUE, "Not/AZone")
         val good = Plan("g", "good", PinState(1.0, 2.0), null, 1_790_000_000_000, "Mars/Olympus", photoUris = listOf("content://a/1", "content://a/2"))

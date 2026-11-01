@@ -481,16 +481,19 @@ private fun minAbsDeclination(p: Projector, where: GeoPoint, instant: Instant, f
     return decs.minBy { kotlin.math.abs(it) }
 }
 
-/** Declination result cache: recomputed only when the view moves > 0.5° or time changes > 30 s. */
-private object DecCache { var az = Double.NaN; var alt = Double.NaN; var t = 0L; var key = ""; var value = 0.0 }
+/**
+ * Declination result cache: recomputed only when the phone orientation changes (any axis, including roll,
+ * which turns the frame corners) by more than ~0.5°, or the time changes by more than 30 s.
+ */
+private object DecCache { var r = FloatArray(0); var t = 0L; var key = ""; var value = 0.0 }
 
 private fun cachedMinAbsDeclination(p: Projector, where: GeoPoint, instant: Instant, focalMm: Double, cameraName: String?): Double {
-    val c = p.center()
-    val key = "$focalMm|$cameraName|${where.latitude},${where.longitude}"
-    if (DecCache.key == key && !DecCache.az.isNaN() && kotlin.math.abs(com.photocapsules.core.astro.angleDiff(c.azimuth, DecCache.az)) < 0.5 &&
-        kotlin.math.abs(c.altitude - DecCache.alt) < 0.5 && kotlin.math.abs(instant.epochSecond - DecCache.t) < 30) return DecCache.value
+    val key = "$focalMm|$cameraName|${where.latitude},${where.longitude}|${p.declination}|${p.azOffset}|${p.altOffset}|${p.w}x${p.h}"
+    val same = DecCache.key == key && DecCache.r.size == p.r.size && kotlin.math.abs(instant.epochSecond - DecCache.t) < 30 &&
+        p.r.indices.all { kotlin.math.abs(p.r[it] - DecCache.r[it]) < 0.009f }
+    if (same) return DecCache.value
     DecCache.value = minAbsDeclination(p, where, instant, focalMm, cameraName)
-    DecCache.az = c.azimuth; DecCache.alt = c.altitude; DecCache.t = instant.epochSecond; DecCache.key = key
+    DecCache.r = p.r.copyOf(); DecCache.t = instant.epochSecond; DecCache.key = key
     return DecCache.value
 }
 
@@ -499,7 +502,7 @@ private fun DrawScope.drawSpotStars(p: Projector, sky: ArSky?, where: GeoPoint, 
     val cam = arCamera(req.cameraName)
     val dec = cachedMinAbsDeclination(p, where, instant, req.focalMm, req.cameraName)
     val pitch = cam.pixelPitchUm
-    val t = pitch?.let { SpotStars.npf(req.aperture, req.focalMm, it, dec, SpotStars.Accuracy.DEFAULT) }
-    val txt = String.format(Locale.US, "Min. declination %.1f°  ·  NPF %s  ·  500 rule %.1f s", dec, t?.let { String.format(Locale.US, "%.1f s", it) } ?: "—", SpotStars.rule500(cam.cropFactor, req.focalMm))
+    val t = pitch?.let { SpotStars.npf(req.aperture, req.focalMm, it, dec, if (req.npfAccurate) SpotStars.Accuracy.ACCURATE else SpotStars.Accuracy.DEFAULT) }
+    val txt = String.format(Locale.US, "Min. declination %.1f°  ·  NPF%s %s  ·  500 rule %.1f s", dec, if (req.npfAccurate) " (accurate)" else "", t?.let { String.format(Locale.US, "%.1f s", it) } ?: "—", SpotStars.rule500(cam.cropFactor, req.focalMm))
     text(txt, Offset(20f, size.height - 220f), Palette.Accent, 30f)
 }
