@@ -48,7 +48,7 @@ fun SpotStarsScreen(onBack: () -> Unit, go: (String) -> Unit) {
     var npfValue = 0.0
     AppScreen("Spot Stars", onBack, bottomBar = {
         BottomActions(
-            "AR" to { AppState.ar = ArRequest(AppState.sky.value, focalMm = f, aperture = n); go(Routes.ar(ArMode.SPOT_STARS)) },
+            "AR" to { AppState.ar = ArRequest(AppState.sky.value, focalMm = f, aperture = n, cameraName = camera.name); go(Routes.ar(ArMode.SPOT_STARS)) },
             "Timer" to { AppState.timerPresetSeconds = npfValue; go(Routes.TIMER) },
         )
     }) { p ->

@@ -65,7 +65,7 @@ object MoonCalc {
         val t = instant.toAstroTime()
         val pos = Sky.position(SkyBody.MOON, t, where)
         val sun = Sky.position(SkyBody.SUN, t, where)
-        val phase = moonPhase(t)
+        val phase = MoonCalendar.apparentElongation(t)
         val illum = illumination(Body.Moon, t).phaseFraction
         // Previous new Moon: search forward from slightly before the expected time.
         val expectedAge = phase / 360.0 * SYNODIC_MONTH

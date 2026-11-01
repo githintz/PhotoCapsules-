@@ -1,6 +1,11 @@
 package com.photocapsules.feature.calculators
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -93,7 +98,7 @@ fun ExposureScreen(onBack: () -> Unit, go: (String) -> Unit) {
         onDismissRequest = { showEv = false },
         title = { Text("Exposure values (ISO 100)") },
         text = {
-            Column {
+            Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState())) {
                 SimpleTable(listOf("EV", "Situation"), ExposureValueTable.entries.map { listOf(Format.trimZeros(it.ev100.toString()), it.situation) }) { i ->
                     // Tap: set the test shot to f/test at the chosen EV (keep aperture and ISO, solve shutter)
                     tT = ExposureCalculator.shutterForEv(ExposureValueTable.entries[i].ev100, tN, tIso)

@@ -41,8 +41,8 @@ class AstroAuthoritativeTest {
         assertEquals(ref.size, ours.size)
         for ((r, o) in ref.zip(ours)) {
             assertEquals(r[1].jsonPrimitive.content, o.phase.name)
-            // USNO publishes times rounded to the minute.
-            assertTrue(minutesBetween(parseUtc(r[0].jsonPrimitive.content), o.time) <= 1.5, "$r vs ${o.time}")
+            // USNO publishes times rounded to the nearest minute.
+            assertTrue(minutesBetween(parseUtc(r[0].jsonPrimitive.content), o.time) <= 0.6, "$r vs ${o.time}")
         }
     }
 

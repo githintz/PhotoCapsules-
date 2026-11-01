@@ -26,6 +26,8 @@ data class ArRequest(
     /** Angles of view of a camera frame to outline in AR (FoV AR). */
     val frameHAngleDeg: Double? = null,
     val frameVAngleDeg: Double? = null,
+    /** Camera chosen on the calling calculator (null = default camera). */
+    val cameraName: String? = null,
 )
 
 object AppState {

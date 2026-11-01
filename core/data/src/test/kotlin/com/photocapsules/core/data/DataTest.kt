@@ -14,7 +14,9 @@ class DataTest {
         val s = LibraryState(listOf(plan), listOf(poi))
         val back = Kml.parse(Kml.toKmz(s))
         assertEquals(plan.copy(createdMillis = back.plans[0].createdMillis, updatedMillis = back.plans[0].updatedMillis), back.plans[0])
-        assertEquals(poi.copy(createdMillis = back.pois[0].createdMillis), back.pois[0])
+        assertEquals(poi, back.pois[0]) // lossless, including creation date
+        val withPhotos = poi.copy(id = "q2", photoUris = listOf("content://x/1"))
+        assertEquals(withPhotos, Kml.parse(Kml.toKmz(LibraryState(pois = listOf(withPhotos)))).pois.single())
         val back2 = Kml.parse(Kml.toKml(s).toByteArray())
         assertEquals(1, back2.plans.size); assertEquals(1, back2.pois.size)
     }

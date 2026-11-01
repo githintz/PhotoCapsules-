@@ -78,7 +78,7 @@ fun DofTableScreen(onBack: () -> Unit, go: (String) -> Unit) {
     var f by rememberPersisted("doft_f", 35.0)
     var mode by rememberPersisted("doft_mode", 0.0)
     var sel by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    val apertures = Stops.apertureFull.filter { it in 1.4..22.0 }
+    val apertures = Stops.apertures(settingsState().stopScale).filter { it in 1.4..22.0 }
     lateinit var camera: Camera
     AppScreen("DoF table", onBack, bottomBar = {
         BottomActions("AR" to {
@@ -121,7 +121,7 @@ fun DofTableScreen(onBack: () -> Unit, go: (String) -> Unit) {
 fun HyperfocalTableScreen(onBack: () -> Unit, go: (String) -> Unit) {
     val units = settingsState().units
     var sel by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    val apertures = Stops.apertureFull.filter { it in 1.4..22.0 }
+    val apertures = Stops.apertures(settingsState().stopScale).filter { it in 1.4..22.0 }
     lateinit var camera: Camera
     AppScreen("Hyperfocal table", onBack, bottomBar = {
         BottomActions("AR" to {

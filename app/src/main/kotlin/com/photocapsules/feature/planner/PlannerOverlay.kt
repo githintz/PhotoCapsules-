@@ -87,12 +87,15 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
         return (Geodesy.haversine(f.red, LatLon(g.latitude, LatLon.normalizeLongitude(g.longitude))) / 100.0).coerceAtLeast(1e-3)
     }
 
-    /** Screen unit vector for a true azimuth at the red pin (handles map rotation). */
+    /**
+     * Unit vector on the overlay canvas for a true azimuth. osmdroid draws overlays on a canvas that it rotates
+     * itself (map orientation), and Web Mercator is conformal, so north is "up" and directions are exact here.
+     * (Projecting a nearby point instead gives integer-pixel quantisation errors of several degrees when zoomed out.)
+     */
+    @Suppress("UNUSED_PARAMETER")
     private fun dir(mv: MapView, f: PlannerFrame, az: Double): PointF {
-        val c = px(mv, f.red)
-        val e = px(mv, Geodesy.direct(f.red, az, 200.0))
-        val l = hypot((e.x - c.x).toDouble(), (e.y - c.y).toDouble()).toFloat().coerceAtLeast(1e-3f)
-        return PointF((e.x - c.x) / l, (e.y - c.y) / l)
+        val a = Math.toRadians(az)
+        return PointF(sin(a).toFloat(), (-cos(a)).toFloat())
     }
 
     private fun azLine(c: Canvas, mv: MapView, f: PlannerFrame, az: Double, lengthPx: Float, p: Paint) {
@@ -236,6 +239,11 @@ class PlannerOverlay(private val onToolAzimuth: (Double) -> Unit, private val on
                 val end = px(mv, Geodesy.direct(f.red, sa, sl.coerceAtMost(50_000.0)))
                 c.drawLine(o.x, o.y, end.x, end.y, paint(0xFF000000.toInt(), 10f))
                 c.drawLine(o.x, o.y, end.x, end.y, paint(0x80FFFFFF.toInt(), 2f))
+                // Same object placed at the Black Pin (subject) casts a parallel shadow there.
+                f.black?.let { b ->
+                    val bs = px(mv, b); val be = px(mv, Geodesy.direct(b, sa, sl.coerceAtMost(50_000.0)))
+                    c.drawLine(bs.x, bs.y, be.x, be.y, paint(0xFF000000.toInt(), 10f))
+                }
             }
         }
         // Black pin link

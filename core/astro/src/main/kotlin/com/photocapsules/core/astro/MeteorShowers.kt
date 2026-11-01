@@ -14,7 +14,8 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 /**
- * Meteor shower data: IMO Working List of Visual Meteor Showers (IMO 2026 Meteor Shower Calendar, Table 5).
+ * Meteor shower data: IMO Working List of Visual Meteor Showers (IMO 2026 Meteor Shower Calendar, Table 5;
+ * LMI/AMO/NOO cross-checked with the IMO 2023 Working List, PHO radiant per IMO 2026/2027).
  * Solar longitudes are J2000.0. Radiant drift in degrees/day (typical IMO values). [profileB] = activity
  * profile slope (Jenniskens 1994): ZHR(λ) = ZHRmax·10^(−B·|λ−λmax|).
  */
@@ -76,10 +77,11 @@ object MeteorShowers {
         MeteorShower("STA", "Southern Taurids", md(9, 20), md(11, 20), 223.0, 52.0, 15.0, 27.0, 2.3, 5.0, showerClass = 2, driftRa = 0.8, driftDec = 0.3, profileB = 0.03),
         MeteorShower("NTA", "Northern Taurids", md(10, 20), md(12, 10), 230.0, 58.0, 22.0, 29.0, 2.3, 5.0, showerClass = 2, driftRa = 0.9, driftDec = 0.2, profileB = 0.03),
         MeteorShower("LEO", "Leonids", md(11, 6), md(11, 30), 235.27, 152.0, 22.0, 71.0, 2.5, 15.0, showerClass = 1, driftRa = 0.7, driftDec = -0.4, profileB = 0.4),
-        MeteorShower("LMI", "Leonis Minorids", md(10, 19), md(12, 5), 238.0, 162.0, 37.0, 62.0, 3.2, 2.0, showerClass = 4, driftRa = 0.9, driftDec = -0.4),
-        MeteorShower("AMO", "α-Monocerotids", md(11, 15), md(11, 25), 239.5, 118.0, 1.0, 60.0, 2.4, 5.0, variable = true, showerClass = 3, profileB = 1.0),
-        MeteorShower("NOR", "November Orionids", md(11, 14), md(12, 6), 246.0, 88.0, 15.0, 44.0, 2.5, 3.0, showerClass = 4, driftRa = 0.9),
-        MeteorShower("PHO", "Phoenicids", md(11, 28), md(12, 9), 250.5, 18.0, -47.0, 18.0, 2.8, 5.0, variable = true, showerClass = 3),
+        MeteorShower("LMI", "Leonis Minorids", md(10, 19), md(10, 27), 211.0, 162.0, 37.0, 62.0, 3.0, 2.0, showerClass = 4, driftRa = 0.9, driftDec = -0.4),
+        MeteorShower("AMO", "α-Monocerotids", md(11, 15), md(11, 25), 239.5, 118.0, 1.0, 65.0, 2.4, 5.0, variable = true, showerClass = 3, profileB = 1.0),
+        MeteorShower("NOO", "November Orionids", md(11, 13), md(12, 6), 246.0, 91.0, 16.0, 44.0, 3.0, 3.0, showerClass = 4, driftRa = 0.9),
+        // IMO 2026/2027 revised Phoenicid radiant (α 8°, δ −27°), maximum Dec 2.
+        MeteorShower("PHO", "Phoenicids", md(11, 28), md(12, 9), 249.5, 8.0, -27.0, 18.0, 2.8, 5.0, variable = true, showerClass = 3),
         MeteorShower("PUP", "Puppid-Velids", md(12, 1), md(12, 15), 255.0, 123.0, -45.0, 44.0, 2.9, 10.0, showerClass = 2),
         MeteorShower("MON", "Monocerotids", md(11, 27), md(12, 17), 257.0, 100.0, 8.0, 41.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8),
         MeteorShower("HYD", "σ-Hydrids", md(12, 3), md(12, 20), 257.0, 125.0, 2.0, 58.0, 3.0, 7.0, showerClass = 2, driftRa = 0.7, driftDec = -0.2),

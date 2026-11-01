@@ -88,6 +88,7 @@ fun PlannerPanel(index: Int, m: PlannerModel, f: PlannerFrame?, d: PanelData, un
                 val src = if (f != null && f.sun.altitude > 0) "Sun" else if (f != null && f.moon.position.altitude > 0) "Moon" else null
                 KV("Shadow length", f?.shadowLengthM?.let { Fmt.dist(it, units, 1) + " ($src)" } ?: "No shadow (Sun & Moon down)")
                 KV("Shadow direction", f?.shadowAzimuth?.let { Fmt.az(it) } ?: "—")
+                if (m.black != null && f?.shadowLengthM != null) Text("Also drawn for the same object at the Black Pin", color = Palette.TextDim, fontSize = 10.sp)
                 Text("Tap to edit height", color = Palette.TextDim, fontSize = 10.sp, modifier = Modifier.clickable { edit = true })
             }
             if (edit) NumberDialog("Object height", Fmt.toDisplay(m.objectHeightM, units), Fmt.lenUnit(units), 0.01, 100000.0, false, { edit = false }) { m.objectHeightM = Fmt.fromDisplay(it, units) }

@@ -170,6 +170,9 @@ fun PlannerMapView(model: PlannerModel, frame: PlannerFrame?, modifier: Modifier
     DisposableEffect(model.compassRotate) {
         val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val sensor = sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        // The magnetometer error depends on where the PHONE is (not the planned Red Pin); computed once.
+        val deviceDecl = (LocationService.lastKnown(ctx)?.let { LocationService.magneticDeclination(it.latitude, it.longitude, 0.0, System.currentTimeMillis()) }
+            ?: LocationService.magneticDeclination(model.red.latitude, model.red.longitude, 0.0, System.currentTimeMillis()))
         val listener = object : SensorEventListener {
             val r = FloatArray(9); val rr = FloatArray(9); val o = FloatArray(3)
             override fun onSensorChanged(e: SensorEvent) {
@@ -185,8 +188,7 @@ fun PlannerMapView(model: PlannerModel, frame: PlannerFrame?, modifier: Modifier
                 }
                 SensorManager.remapCoordinateSystem(r, ax, ay, rr)
                 SensorManager.getOrientation(rr, o)
-                val decl = LocationService.magneticDeclination(model.red.latitude, model.red.longitude, 0.0, System.currentTimeMillis())
-                holder.map.mapOrientation = -(Math.toDegrees(o[0].toDouble()) + decl).toFloat()
+                holder.map.mapOrientation = -(Math.toDegrees(o[0].toDouble()) + deviceDecl).toFloat()
             }
             override fun onAccuracyChanged(s: Sensor?, a: Int) {}
         }

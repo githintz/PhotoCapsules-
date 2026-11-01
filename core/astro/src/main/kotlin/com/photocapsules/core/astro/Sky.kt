@@ -28,13 +28,12 @@ object Sky {
     internal fun position(body: SkyBody, time: Time, where: GeoPoint): BodyPosition {
         val obs = where.toObserver()
         val eq = equator(body(body), time, obs, EquatorEpoch.OfDate, Aberration.Corrected)
-        val hor = horizon(time, obs, eq.ra, eq.dec, Refraction.Normal)
         val horTrue = horizon(time, obs, eq.ra, eq.dec, Refraction.None)
         val distKm = eq.dist * KM_PER_AU
         val r = if (body == SkyBody.SUN) SUN_RADIUS_KM else MOON_RADIUS_KM
         return BodyPosition(
-            azimuth = hor.azimuth,
-            altitude = hor.altitude,
+            azimuth = horTrue.azimuth,
+            altitude = apparentAltitude(horTrue.altitude),
             trueAltitude = horTrue.altitude,
             raHours = eq.ra,
             decDeg = eq.dec,
@@ -72,8 +71,19 @@ object Sky {
     }
 
     internal fun toHorizontal(hor: Vector, refraction: Boolean): HorizontalCoord {
-        val s = hor.toHorizontal(if (refraction) Refraction.Normal else Refraction.None)
-        return HorizontalCoord(s.lon, s.lat)
+        val s = hor.toHorizontal(Refraction.None)
+        return HorizontalCoord(s.lon, if (refraction) apparentAltitude(s.lat) else s.lat)
+    }
+
+    /**
+     * Apparent altitude: standard refraction (Astronomy Engine "Normal" model) above −1°; below that the
+     * refraction tapers linearly to zero at −5° (the engine would otherwise add a constant ~0.5° to every
+     * negative altitude, e.g. showing −17.8° for a Sun that is geometrically 18.4° below the horizon).
+     */
+    fun apparentAltitude(trueAltitude: Double): Double {
+        if (trueAltitude >= -1.0) return trueAltitude + io.github.cosinekitty.astronomy.refractionAngle(Refraction.Normal, trueAltitude)
+        val r1 = io.github.cosinekitty.astronomy.refractionAngle(Refraction.Normal, -1.0)
+        return trueAltitude + r1 * ((trueAltitude + 5.0) / 4.0).coerceIn(0.0, 1.0)
     }
 
     /** Ratio shadow length / object height for a light source at [altitudeDeg]; null when at/below the horizon. */

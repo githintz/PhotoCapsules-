@@ -56,6 +56,8 @@ object Kml {
         for (p in state.pois) {
             append("<Placemark>\n<name>${esc(p.name)}</name>\n<description>${esc(p.notes)}</description>\n<ExtendedData>\n")
             append("<Data name=\"$NS_PC:type\"><value>poi</value></Data>\n<Data name=\"$NS_PC:id\"><value>${esc(p.id)}</value></Data>\n")
+            append("<Data name=\"$NS_PC:createdMillis\"><value>${p.createdMillis}</value></Data>\n")
+            if (p.photoUris.isNotEmpty()) append("<Data name=\"$NS_PC:photoUris\"><value>${esc(p.photoUris.joinToString("\n"))}</value></Data>\n")
             append("</ExtendedData>\n<Point><coordinates>${coords(p.longitude, p.latitude, p.altitudeM)}</coordinates></Point>\n</Placemark>\n")
         }
         append("</Document>\n</kml>\n")
@@ -130,7 +132,9 @@ object Kml {
                     photoUris = data["photoUris"]?.split('\n')?.filter { it.isNotBlank() } ?: emptyList(),
                 ))
             } else {
-                pois.add(PointOfInterest(data["id"] ?: LibraryRepository.newId(), name, lat, lon, alt, notes))
+                pois.add(PointOfInterest(data["id"] ?: LibraryRepository.newId(), name, lat, lon, alt, notes,
+                    photoUris = data["photoUris"]?.split('\n')?.filter { it.isNotBlank() } ?: emptyList(),
+                    createdMillis = data["createdMillis"]?.toLongOrNull()?.takeIf { it in MIN_EPOCH_MS..MAX_EPOCH_MS } ?: System.currentTimeMillis()))
             }
         }
         return LibraryState(plans, pois)

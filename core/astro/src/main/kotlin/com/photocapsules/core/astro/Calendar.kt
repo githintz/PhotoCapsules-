@@ -56,15 +56,32 @@ object MoonCalendar {
     fun phases(start: Instant, end: Instant): List<PhaseEvent> {
         val out = ArrayList<PhaseEvent>()
         var mq = searchMoonQuarter(start.toAstroTime())
-        while (mq.time.toInstant().isBefore(end)) {
-            val inst = mq.time.toInstant()
-            val dist = geoMoon(mq.time).length() * KM_PER_AU
+        while (true) {
+            // Refine to the apparent (aberration-corrected) Sun, as almanacs/USNO do (≈ 40 s earlier).
+            val tRefined = refineApparentPhase(mq.time, mq.quarter * 90.0)
+            if (!tRefined.toInstant().isBefore(end)) break
+            val inst = tRefined.toInstant()
+            if (inst.isBefore(start)) { mq = nextMoonQuarter(mq); continue }
+            val dist = geoMoon(tRefined).length() * KM_PER_AU
             val phase = PrincipalPhase.entries[mq.quarter]
             val syzygy = phase == PrincipalPhase.FULL || phase == PrincipalPhase.NEW
             out.add(PhaseEvent(phase, inst, dist, syzygy && isSupermoon(inst, dist), syzygy && dist > MICROMOON_KM))
             mq = nextMoonQuarter(mq)
         }
         return out
+    }
+
+    /** Moon − apparent Sun ecliptic longitude of date (0 new, 90 first quarter, 180 full, 270 last quarter). */
+    internal fun apparentElongation(t: io.github.cosinekitty.astronomy.Time): Double {
+        val sun = io.github.cosinekitty.astronomy.equatorialToEcliptic(io.github.cosinekitty.astronomy.geoVector(io.github.cosinekitty.astronomy.Body.Sun, t, io.github.cosinekitty.astronomy.Aberration.Corrected))
+        val moon = io.github.cosinekitty.astronomy.equatorialToEcliptic(geoMoon(t))
+        return normalizeDegrees(moon.elon - sun.elon)
+    }
+
+    private fun refineApparentPhase(t0: io.github.cosinekitty.astronomy.Time, target: Double): io.github.cosinekitty.astronomy.Time {
+        var t = t0
+        repeat(4) { t = t.addDays(-angleDiff(apparentElongation(t), target) / 12.19) }
+        return t
     }
 
     fun nextPhase(from: Instant, phase: PrincipalPhase? = null): PhaseEvent {

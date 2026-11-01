@@ -188,6 +188,11 @@ class AstroBehaviourTest {
         val predawn = per.peak.atZone(ZoneOffset.UTC).toLocalDate().atTime(2, 0).toInstant(ZoneOffset.UTC)
         val hr = MeteorShowers.hourlyRate(per, predawn, where)
         assertTrue(hr in 40.0..100.0, "hr=$hr")
+        // IMO data corrections: LMI peaks around 24 Oct (λ 211°); Phoenicid radiant 8°/−27°
+        val lmi = MeteorShowers.occurrence(MeteorShowers.byCode("LMI")!!, 2026)
+        assertEquals(LocalDate.of(2026, 10, 24), lmi.peak.atZone(ZoneOffset.UTC).toLocalDate())
+        assertEquals(LocalDate.of(2026, 10, 27), lmi.activityEnd)
+        assertEquals(LocalDate.of(2026, 12, 2), MeteorShowers.occurrence(MeteorShowers.byCode("PHO")!!, 2026).peak.atZone(ZoneOffset.UTC).toLocalDate())
         val active = MeteorShowers.active(Instant.parse("2026-08-12T00:00:00Z")).map { it.shower.code }
         assertTrue("PER" in active && "SDA" in active && "CAP" in active)
         assertTrue("GEM" !in active)
@@ -237,6 +242,18 @@ class AstroBehaviourTest {
     private fun angularSep(a: HorizontalCoord, b: HorizontalCoord): Double {
         val x = ArProjection.enu(a.azimuth, a.altitude); val y = ArProjection.enu(b.azimuth, b.altitude)
         return Math.toDegrees(kotlin.math.acos((x[0] * y[0] + x[1] * y[1] + x[2] * y[2]).coerceIn(-1.0, 1.0)))
+    }
+
+    @Test fun belowHorizonAltitudesHaveNoFictitiousRefraction() {
+        assertEquals(-18.36, Sky.apparentAltitude(-18.36), 1e-12)
+        assertEquals(-5.85, Sky.apparentAltitude(-5.85), 1e-12)
+        // Continuous at −1° and standard ~0.57° refraction at the horizon
+        assertEquals(Sky.apparentAltitude(-1.0), Sky.apparentAltitude(-1.0 - 1e-9), 1e-6)
+        assertEquals(0.5, Sky.apparentAltitude(0.0), 0.1)
+        // Twilight positions shown match the light type thresholds
+        val t = Instant.parse("2026-10-31T19:45:00Z")
+        val p = Sky.position(SkyBody.SUN, t, madrid)
+        assertTrue(p.trueAltitude < -10 && abs(p.altitude - p.trueAltitude) < 1e-9)
     }
 
     @Test fun lightTypes() {

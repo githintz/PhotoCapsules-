@@ -80,7 +80,8 @@ class AstroGoldenTest {
         assertEquals(ref.size, ours.size)
         for ((r, o) in ref.zip(ours)) {
             assertEquals(r.s("phase"), o.phase.name)
-            assertTrue(minutesBetween(parseUtc(r.s("utc")!!), o.time) < 1.0, "$r vs ${o.time}")
+            // Apparent-Sun phases: agree with PyEphem within 15 s (was ~40 s late with the geometric Sun).
+            assertTrue(minutesBetween(parseUtc(r.s("utc")!!), o.time) < 0.25, "$r vs ${o.time}")
         }
     }
 

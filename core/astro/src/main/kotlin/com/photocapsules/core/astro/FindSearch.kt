@@ -29,8 +29,8 @@ data class FindResult(
 
 /**
  * "Find" tool: dates and times when the Sun/Moon is at a given azimuth (± tolerance) and elevation (± tolerance).
- * Scans azimuth crossings at a coarse step, then within each window where |Δaz| ≤ tolerance minimizes the
- * normalized error by golden-section search.
+ * Scans azimuth crossings (and near-misses) at a coarse step; each window where |Δaz| ≤ tolerance is then
+ * scanned for times meeting BOTH tolerances (box constraint), and the best such time is reported.
  */
 object FindSearch {
     private const val STEP_DAYS = 15.0 / 1440.0
@@ -44,51 +44,81 @@ object FindSearch {
         val results = ArrayList<FindResult>()
         fun pos(ut: Double) = Sky.position(q.body, Time(ut), q.where)
         fun dAz(ut: Double) = angleDiff(pos(ut).azimuth, q.azimuth)
-        fun cost(ut: Double): Double {
-            val p = pos(ut)
-            val a = angleDiff(p.azimuth, q.azimuth) / azTol
-            val e = if (q.altitude == null) 0.0 else (p.altitude - q.altitude) / altTol
-            return a * a + e * e
+        // Chebyshev (box) error: ≤ 1 means both constraints are met. Altitude-only mode requires alt > −1°.
+        fun boxError(p: BodyPosition): Double {
+            val a = abs(angleDiff(p.azimuth, q.azimuth)) / azTol
+            val e = if (q.altitude == null) (if (p.altitude > -1.0) 0.0 else 1.0 + (-1.0 - p.altitude)) else abs(p.altitude - q.altitude) / altTol
+            return maxOf(a, e)
         }
         var prevUt = t0
         var prev = dAz(t0)
+        var prevPrevUt = Double.NaN
         var prevPrev = Double.NaN
         var ut = t0
         var lastResultUt = -1e9
+        var scannedUntil = -1e9
         while (ut < t1 && results.size < q.maxResults) {
             if (cancelled()) break
             val next = minOf(ut + STEP_DAYS, t1)
             val cur = dAz(next)
-            // Candidate: sign change (true crossing, not a ±180 wrap) or a local minimum of |Δaz| within tolerance.
+            // Candidates: a true crossing of the target azimuth (not a ±180 wrap) or a local minimum of |Δaz|
+            // (azimuth hovering near the target without crossing it).
             val crossing = (prev <= 0 && cur > 0 || prev >= 0 && cur < 0) && abs(prev - cur) < 90
-            val localMin = !prevPrev.isNaN() && abs(prev) <= azTol && abs(prev) <= abs(prevPrev) && abs(prev) <= abs(cur)
-            if (crossing || localMin) {
-                val center = if (crossing) bisect(prevUt, next) { dAz(it) } else prevUt
-                if (center - lastResultUt > 2.0 / 24.0) {
-                    // Window where |Δaz| ≤ tol around the centre (search ±3 h).
-                    val lo = edge(center, center - 0.125) { abs(dAz(it)) <= azTol }
-                    val hi = edge(center, center + 0.125) { abs(dAz(it)) <= azTol }
-                    val best = golden(lo, hi, ::cost)
-                    val p = pos(best)
-                    val okAz = abs(angleDiff(p.azimuth, q.azimuth)) <= azTol + 1e-9
-                    val okAlt = if (q.altitude == null) p.altitude > -1.0 else abs(p.altitude - q.altitude) <= altTol + 1e-9
-                    if (okAz && okAlt && best >= t0 && best <= t1) {
-                        val inst = Time(best).toInstant()
-                        results.add(
-                            FindResult(
-                                inst, p.azimuth, p.altitude, DayEvents.lightType(inst, q.where),
-                                if (q.body == SkyBody.MOON) MoonCalc.info(inst, q.where).illumination else null,
-                            )
+            val localMin = !prevPrev.isNaN() && abs(prev) <= abs(prevPrev) && abs(prev) <= abs(cur) && abs(prev) < azTol + 2.0
+            var center = Double.NaN
+            if (crossing) center = bisect(prevUt, next) { dAz(it) }
+            else if (localMin) {
+                val m = goldenMin(prevPrevUt, next) { abs(dAz(it)) }
+                if (abs(dAz(m)) <= azTol) center = m
+            }
+            // Azimuth lingering inside the tolerance without crossing or a minimum (e.g. the Sun rising
+            // vertically at the equator on an equinox).
+            if (center.isNaN() && abs(cur) <= azTol) center = next
+            if (!center.isNaN() && center > scannedUntil && center - lastResultUt > 2.0 / 24.0) {
+                // Window where |Δaz| ≤ tol around the centre (search ±3 h), then scan it for feasible times.
+                val lo = edge(center, center - 0.125) { abs(dAz(it)) <= azTol }
+                val hi = edge(center, center + 0.125) { abs(dAz(it)) <= azTol }
+                scannedUntil = hi
+                val n = maxOf(8, minOf(400, ((hi - lo) / (20.0 / 86400.0)).toInt()))
+                var bestUt = center; var bestErr = Double.MAX_VALUE
+                for (i in 0..n) {
+                    val tt = lo + (hi - lo) * i / n
+                    val err = boxError(pos(tt))
+                    if (err < bestErr) { bestErr = err; bestUt = tt }
+                }
+                // Local refinement around the best sample.
+                val stepW = (hi - lo) / n
+                val refined = goldenMin(maxOf(lo, bestUt - stepW), minOf(hi, bestUt + stepW)) { boxError(pos(it)) }
+                if (boxError(pos(refined)) <= bestErr) bestUt = refined
+                val p = pos(bestUt)
+                if (boxError(p) <= 1.0 + 1e-9 && bestUt >= t0 && bestUt <= t1) {
+                    val inst = Time(bestUt).toInstant()
+                    results.add(
+                        FindResult(
+                            inst, p.azimuth, p.altitude, DayEvents.lightType(inst, q.where),
+                            if (q.body == SkyBody.MOON) MoonCalc.info(inst, q.where).illumination else null,
                         )
-                        lastResultUt = best
-                    }
+                    )
+                    lastResultUt = bestUt
                 }
             }
-            prevPrev = prev
+            prevPrev = prev; prevPrevUt = prevUt
             prev = cur; prevUt = next; ut = next
             progress((ut - t0) / (t1 - t0))
         }
         return results
+    }
+
+    private fun goldenMin(a0: Double, b0: Double, f: (Double) -> Double): Double {
+        var a = a0; var b = b0
+        val g = (sqrt(5.0) - 1) / 2
+        var c = b - g * (b - a); var d = a + g * (b - a)
+        var fc = f(c); var fd = f(d)
+        repeat(40) {
+            if (fc < fd) { b = d; d = c; fd = fc; c = b - g * (b - a); fc = f(c) }
+            else { a = c; c = d; fc = fd; d = a + g * (b - a); fd = f(d) }
+        }
+        return (a + b) / 2
     }
 
     private fun bisect(a0: Double, b0: Double, f: (Double) -> Double): Double {
@@ -108,18 +138,4 @@ object FindSearch {
         return a
     }
 
-    private fun golden(a0: Double, b0: Double, f: (Double) -> Double): Double {
-        if (b0 - a0 < 1e-7) return (a0 + b0) / 2
-        val g = (sqrt(5.0) - 1) / 2
-        var a = a0; var b = b0
-        var c = b - g * (b - a); var d = a + g * (b - a)
-        var fc = f(c); var fd = f(d)
-        repeat(40) {
-            if (fc < fd) { b = d; d = c; fd = fc; c = b - g * (b - a); fc = f(c) }
-            else { a = c; c = d; fc = fd; d = a + g * (b - a); fd = f(d) }
-        }
-        val m = (a + b) / 2
-        // Endpoints may be better if the minimum is at the window edge.
-        return listOf(a0, b0, m).minBy(f)
-    }
 }
