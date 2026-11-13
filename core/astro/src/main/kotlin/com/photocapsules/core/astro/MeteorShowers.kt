@@ -14,8 +14,7 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 /**
- * Meteor shower data: IMO Working List of Visual Meteor Showers (IMO 2026 Meteor Shower Calendar, Table 5;
- * LMI/AMO/NOO cross-checked with the IMO 2023 Working List, PHO radiant per IMO 2026/2027).
+ * Meteor shower data: IMO Working List of Visual Meteor Showers (IMO 2026 Meteor Shower Calendar, Table 5).
  * Solar longitudes are J2000.0. Radiant drift in degrees/day (typical IMO values). [profileB] = activity
  * profile slope (Jenniskens 1994): ZHR(λ) = ZHRmax·10^(−B·|λ−λmax|).
  */
@@ -65,10 +64,10 @@ object MeteorShowers {
         MeteorShower("ELY", "η-Lyrids", md(5, 3), md(5, 14), 50.0, 291.0, 43.0, 43.0, 3.0, 3.0, showerClass = 4),
         MeteorShower("ARI", "Daytime Arietids", md(5, 14), md(6, 24), 76.7, 43.0, 24.0, 38.0, 2.8, 30.0, showerClass = 2, driftRa = 1.0, daytime = true, profileB = 0.1),
         MeteorShower("JBO", "June Bootids", md(6, 22), md(7, 2), 90.3, 221.0, 48.0, 18.0, 2.2, 5.0, variable = true, showerClass = 3),
-        MeteorShower("JPE", "July Pegasids", md(7, 1), md(7, 20), 108.0, 347.0, 11.0, 63.0, 2.0, 3.0, showerClass = 4, driftRa = 0.8, driftDec = 0.2),
+        MeteorShower("JPE", "July Pegasids", md(7, 1), md(7, 20), 108.0, 347.0, 11.0, 63.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8, driftDec = 0.2),
         MeteorShower("GDR", "July γ-Draconids", md(7, 25), md(7, 31), 125.13, 280.0, 51.0, 27.0, 3.0, 5.0, showerClass = 4),
         MeteorShower("SDA", "Southern δ-Aquariids", md(7, 12), md(8, 23), 128.0, 340.0, -16.0, 41.0, 2.5, 25.0, showerClass = 1, driftRa = 0.8, driftDec = 0.2, profileB = 0.091),
-        MeteorShower("CAP", "α-Capricornids", md(7, 13), md(8, 15), 128.0, 307.0, -10.0, 23.0, 2.5, 5.0, showerClass = 2, driftRa = 0.9, driftDec = 0.3, profileB = 0.1),
+        MeteorShower("CAP", "α-Capricornids", md(7, 3), md(8, 15), 128.0, 307.0, -10.0, 23.0, 2.5, 5.0, showerClass = 2, driftRa = 0.9, driftDec = 0.3, profileB = 0.1),
         MeteorShower("ERI", "η-Eridanids", md(7, 31), md(8, 19), 135.0, 41.0, -11.0, 64.0, 3.0, 3.0, showerClass = 4, driftRa = 0.9),
         MeteorShower("PER", "Perseids", md(7, 17), md(8, 24), 140.0, 48.0, 58.0, 59.0, 2.2, 100.0, showerClass = 1, driftRa = 1.35, driftDec = 0.12, profileB = 0.2),
         MeteorShower("KCG", "κ-Cygnids", md(8, 3), md(8, 28), 144.0, 286.0, 59.0, 23.0, 3.0, 3.0, showerClass = 4, driftRa = 0.3, driftDec = 0.1),
@@ -80,19 +79,19 @@ object MeteorShowers {
         MeteorShower("DRA", "Draconids", md(10, 6), md(10, 10), 195.4, 263.0, 56.0, 20.0, 2.6, 5.0, variable = true, showerClass = 3, profileB = 1.0),
         MeteorShower("EGE", "ε-Geminids", md(10, 14), md(10, 27), 205.0, 102.0, 27.0, 70.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8),
         MeteorShower("ORI", "Orionids", md(10, 2), md(11, 7), 208.0, 95.0, 16.0, 66.0, 2.5, 20.0, showerClass = 1, driftRa = 0.7, driftDec = 0.1, profileB = 0.12),
-        MeteorShower("STA", "Southern Taurids", md(9, 20), md(11, 20), 223.0, 52.0, 15.0, 27.0, 2.3, 5.0, showerClass = 2, driftRa = 0.8, driftDec = 0.3, profileB = 0.03),
+        MeteorShower("STA", "Southern Taurids", md(9, 20), md(11, 20), 223.0, 52.0, 15.0, 27.0, 2.3, 7.0, showerClass = 2, driftRa = 0.8, driftDec = 0.3, profileB = 0.03),
         MeteorShower("NTA", "Northern Taurids", md(10, 20), md(12, 10), 230.0, 58.0, 22.0, 29.0, 2.3, 5.0, showerClass = 2, driftRa = 0.9, driftDec = 0.2, profileB = 0.03),
         MeteorShower("LEO", "Leonids", md(11, 6), md(11, 30), 235.27, 152.0, 22.0, 71.0, 2.5, 15.0, showerClass = 1, driftRa = 0.7, driftDec = -0.4, profileB = 0.4),
         MeteorShower("LMI", "Leonis Minorids", md(10, 19), md(10, 27), 211.0, 162.0, 37.0, 62.0, 3.0, 2.0, showerClass = 4, driftRa = 0.9, driftDec = -0.4),
-        MeteorShower("AMO", "α-Monocerotids", md(11, 15), md(11, 25), 239.5, 118.0, 1.0, 65.0, 2.4, 5.0, variable = true, showerClass = 3, profileB = 1.0),
-        MeteorShower("NOO", "November Orionids", md(11, 14), md(12, 6), 246.0, 91.0, 16.0, 41.0, 3.0, 3.0, showerClass = 4, driftRa = 0.9),
+        MeteorShower("AMO", "α-Monocerotids", md(11, 15), md(11, 25), 239.32, 117.0, 1.0, 65.0, 2.4, 5.0, variable = true, showerClass = 3, profileB = 1.0),
+        MeteorShower("NOO", "November Orionids", md(11, 13), md(12, 6), 246.0, 91.0, 16.0, 44.0, 3.0, 3.0, showerClass = 4, driftRa = 0.9),
         // IMO 2026/2027 revised Phoenicid radiant (α 8°, δ −27°), maximum Dec 2.
-        MeteorShower("PHO", "Phoenicids", md(11, 28), md(12, 9), 249.5, 8.0, -27.0, 18.0, 2.8, 5.0, variable = true, showerClass = 3),
+        MeteorShower("PHO", "Phoenicids", md(12, 1), md(12, 5), 249.5, 8.0, -27.0, 15.0, 2.8, 5.0, variable = true, showerClass = 3),
         MeteorShower("PUP", "Puppid-Velids", md(12, 1), md(12, 15), 255.0, 123.0, -45.0, 44.0, 2.9, 10.0, showerClass = 2),
-        MeteorShower("MON", "Monocerotids", md(11, 27), md(12, 17), 257.0, 100.0, 8.0, 41.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8),
+        MeteorShower("MON", "Monocerotids", md(12, 1), md(12, 19), 257.0, 100.0, 8.0, 41.0, 3.0, 3.0, showerClass = 4, driftRa = 0.8),
         MeteorShower("HYD", "σ-Hydrids", md(12, 3), md(12, 20), 257.0, 125.0, 2.0, 58.0, 3.0, 7.0, showerClass = 2, driftRa = 0.7, driftDec = -0.2),
         MeteorShower("GEM", "Geminids", md(12, 4), md(12, 20), 262.2, 112.0, 33.0, 35.0, 2.6, 150.0, showerClass = 1, driftRa = 1.0, driftDec = -0.1, profileB = 0.39),
-        MeteorShower("URS", "Ursids", md(12, 17), md(12, 26), 270.7, 217.0, 76.0, 33.0, 3.0, 10.0, showerClass = 1, profileB = 0.9),
+        MeteorShower("URS", "Ursids", md(12, 17), md(12, 26), 270.7, 217.0, 76.0, 33.0, 2.8, 10.0, showerClass = 1, profileB = 0.9),
         // IMO 2026: "summarise all meteors from the (extended) COM/DLM-region under COM" – no significant activity variation.
         // Drift fitted to IMO 2026 Table 6 (COM: Jan 0 172°/+25° … Jan 30 198°/+16°); detectable until Jan 31.
         MeteorShower("COM", "Comae Berenicids (incl. Dec. Leonis Minorids)", md(12, 4), md(1, 31), 271.0, 164.0, 29.0, 65.0, 3.0, 3.0, showerClass = 4, driftRa = 0.9, driftDec = -0.35, profileB = 0.0),

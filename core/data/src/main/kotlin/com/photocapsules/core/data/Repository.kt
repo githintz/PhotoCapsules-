@@ -36,7 +36,7 @@ class JsonFileLibraryRepository(private val file: File, private val onChange: ((
         if (!file.exists()) return LibraryState()
         return try { json.decodeFromString<LibraryState>(file.readText()) } catch (e: Exception) {
             // Keep a copy of a corrupt file rather than silently losing it.
-            file.copyTo(File(file.parentFile, file.name + ".corrupt"), overwrite = true)
+            runCatching { file.copyTo(File(file.parentFile, file.name + ".corrupt"), overwrite = true) }
             LibraryState()
         }
     }
@@ -50,6 +50,13 @@ class JsonFileLibraryRepository(private val file: File, private val onChange: ((
         }
         onChange?.let { runCatching { it() } }
     }
+
+    // Read-modify-write as one step, so a background import and a save from the UI cannot lose each other's change.
+    override fun upsertPlan(plan: Plan) = synchronized(lock) { super.upsertPlan(plan) }
+    override fun deletePlan(id: String) = synchronized(lock) { super.deletePlan(id) }
+    override fun upsertPoi(poi: PointOfInterest) = synchronized(lock) { super.upsertPoi(poi) }
+    override fun deletePoi(id: String) = synchronized(lock) { super.deletePoi(id) }
+    override fun merge(imported: LibraryState): Pair<Int, Int> = synchronized(lock) { super.merge(imported) }
 }
 
 class InMemoryLibraryRepository(private var state: LibraryState = LibraryState()) : LibraryRepository {

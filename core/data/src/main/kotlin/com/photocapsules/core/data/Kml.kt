@@ -19,6 +19,12 @@ object Kml {
     const val MIN_EPOCH_MS = -30_610_224_000_000L
     const val MAX_EPOCH_MS = 32_503_680_000_000L
 
+    private val XXE_FEATURES = listOf(
+        "http://apache.org/xml/features/disallow-doctype-decl" to true,
+        "http://xml.org/sax/features/external-general-entities" to false,
+        "http://xml.org/sax/features/external-parameter-entities" to false,
+    )
+
     /** XML-escapes and drops characters that are not allowed in XML 1.0 (so backups always re-import). */
     private fun esc(s: String): String {
         val clean = StringBuilder(s.length)
@@ -91,11 +97,11 @@ object Kml {
     fun parseKml(input: InputStream): LibraryState {
         val f = DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = true
-            // Hardening against XXE
-            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-            setFeature("http://xml.org/sax/features/external-general-entities", false)
-            setFeature("http://xml.org/sax/features/external-parameter-entities", false)
-            isExpandEntityReferences = false
+            // Hardening against XXE. Each feature is optional: Android's built-in parser knows none of them and
+            // throws ParserConfigurationException (it never resolves external entities anyway), so a parser
+            // that rejects a feature must not make the whole import fail.
+            for ((feature, on) in XXE_FEATURES) runCatching { setFeature(feature, on) }
+            runCatching { isExpandEntityReferences = false }
         }
         val doc = f.newDocumentBuilder().parse(input)
         // Namespace-aware lookups so both <Placemark> and prefixed <kml:Placemark> documents import.

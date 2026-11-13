@@ -105,4 +105,33 @@ class DataTest {
         assertTrue(File(dir, "lib.json.corrupt").exists())
         dir.deleteRecursively()
     }
+    /** Android's built-in XML parser rejects every Xerces hardening feature: the import must still work there. */
+    @Test fun kmlImportWorksWhenParserRejectsHardeningFeatures() {
+        val key = "javax.xml.parsers.DocumentBuilderFactory"
+        val before = System.getProperty(key)
+        System.setProperty(key, AndroidLikeDocumentBuilderFactory::class.java.name)
+        try {
+            AndroidLikeDocumentBuilderFactory.created = 0
+            val back = Kml.parse(Kml.toKmz(LibraryState(listOf(plan), listOf(poi))))
+            assertTrue(AndroidLikeDocumentBuilderFactory.created > 0, "the stub factory was not used")
+            assertEquals(plan, back.plans.single()); assertEquals(poi, back.pois.single())
+        } finally {
+            if (before == null) System.clearProperty(key) else System.setProperty(key, before)
+        }
+    }
+}
+
+/** Mimics org.apache.harmony.xml.parsers.DocumentBuilderFactoryImpl: unknown features throw. */
+class AndroidLikeDocumentBuilderFactory : javax.xml.parsers.DocumentBuilderFactory() {
+    private val delegate = newDefaultInstance()
+    init { created++ }
+    override fun newDocumentBuilder(): javax.xml.parsers.DocumentBuilder {
+        delegate.isNamespaceAware = isNamespaceAware
+        return delegate.newDocumentBuilder()
+    }
+    override fun setAttribute(name: String, value: Any?) = throw IllegalArgumentException(name)
+    override fun getAttribute(name: String): Any? = throw IllegalArgumentException(name)
+    override fun setFeature(name: String, value: Boolean) = throw javax.xml.parsers.ParserConfigurationException(name)
+    override fun getFeature(name: String): Boolean = throw javax.xml.parsers.ParserConfigurationException(name)
+    companion object { @JvmStatic var created = 0 }
 }
