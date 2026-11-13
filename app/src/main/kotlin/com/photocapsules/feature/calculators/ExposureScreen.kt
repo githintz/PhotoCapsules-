@@ -55,16 +55,16 @@ fun ExposureScreen(onBack: () -> Unit, go: (String) -> Unit) {
         )
     }) { p ->
         ScrollColumn(p) {
-            SectionTitle("Calculate")
+            SectionTitle("Calculate", "Pick the setting you want solved")
             PillRow(listOf("Shutter speed", "Aperture", "ISO"), tgt.ordinal) { target = it.toDouble() }
-            SectionTitle("Test settings (correctly exposed shot)")
+            SectionTitle("Test shot", "Settings of a photo that is exposed correctly")
             Card {
                 ApertureRow(value = tN) { tN = it }
                 ShutterRow(value = tT) { tT = it }
                 IsoRow(value = tIso) { tIso = it }
                 ValueRow("Exposure value (EV₁₀₀)", String.format(Locale.US, "%.2f", test.ev100))
             }
-            SectionTitle("Equivalent settings")
+            SectionTitle("Final shot", "Same exposure with your new settings and filter")
             Card {
                 if (tgt != ExposureTarget.APERTURE) ApertureRow(value = fN) { fN = it }
                 if (tgt != ExposureTarget.SHUTTER) ShutterRow(value = fT) { fT = it }

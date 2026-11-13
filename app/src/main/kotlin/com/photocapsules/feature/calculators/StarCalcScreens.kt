@@ -60,7 +60,7 @@ fun SpotStarsScreen(onBack: () -> Unit, go: (String) -> Unit) {
                 NumberRow("Declination", dec, "°", display = String.format(Locale.US, "%.1f°", dec), min = -90.0, max = 90.0, allowNegative = true,
                     sub = "Minimum |declination| in the frame (0° = worst case)") { dec = it }
             }
-            SectionTitle("Accuracy")
+            SectionTitle("Accuracy", "Default for small prints and web, Accurate for pinpoint stars")
             PillRow(listOf("Default", "Accurate"), acc.toInt()) { acc = it.toDouble() }
             val r = SpotStars.compute(camera, f, n, dec, if (acc == 0.0) SpotStars.Accuracy.DEFAULT else SpotStars.Accuracy.ACCURATE)
             npfValue = r.npfSeconds ?: r.rule500Seconds
@@ -85,13 +85,13 @@ fun StarTrailsScreen(onBack: () -> Unit, go: (String) -> Unit) {
     val deg = if (mode == 0.0) StarTrails.angleForExposure(exposure) else angle
     AppScreen("Star Trails", onBack, bottomBar = { BottomActions("Timer" to { AppState.timerPresetSeconds = seconds; go(Routes.TIMER) }) }) { p ->
         ScrollColumn(p) {
-            SectionTitle("Calculate")
+            SectionTitle("Calculate", "Pick what you want solved")
             PillRow(listOf("Rotation angle", "Exposure time"), mode.toInt()) { mode = it.toDouble() }
             Card {
                 if (mode == 0.0) NumberRow("Exposure time", exposure / 60.0, "min", display = Format.duration(exposure), min = 0.01, max = 1440.0) { exposure = it * 60.0 }
                 else NumberRow("Rotation angle", angle, "°", min = 0.1, max = 360.0) { angle = it }
             }
-            SectionTitle("Hemisphere")
+            SectionTitle("Hemisphere", "Sets the direction the stars turn in the preview")
             PillRow(listOf("North", "South"), hemi.toInt()) { hemi = it.toDouble() }
             Card {
                 ValueRow("Rotation angle", String.format(Locale.US, "%.2f°", deg), valueColor = Palette.Accent)

@@ -1,6 +1,22 @@
 package com.photocapsules.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TableChart
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.ViewInAr
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,20 +75,38 @@ fun AppScreen(
     bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    val help = Help.screen(title)
+    var showHelp by remember { mutableStateOf(false) }
     Scaffold(
         containerColor = Palette.Background,
         topBar = {
             TopAppBar(
-                title = { Text(title, maxLines = 1) },
-                navigationIcon = {
-                    if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                title = {
+                    Column {
+                        Text(title, maxLines = 1)
+                        if (help != null) Text(help.subtitle, color = Palette.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 },
-                actions = actions,
+                navigationIcon = {
+                    if (onBack != null) Tip("Back") { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
+                },
+                actions = {
+                    actions()
+                    if (help != null) Tip("How to use this tool") {
+                        IconButton(onClick = { showHelp = true }) { Icon(Icons.AutoMirrored.Filled.HelpOutline, "Help", tint = Palette.TextDim) }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Palette.Background),
             )
         },
         bottomBar = bottomBar,
         content = content,
+    )
+    if (showHelp && help != null) AlertDialog(
+        onDismissRequest = { showHelp = false },
+        title = { Text(title) },
+        text = { Text(help.body, modifier = Modifier.verticalScroll(rememberScrollState())) },
+        confirmButton = { TextButton(onClick = { showHelp = false }) { Text("Got it") } },
     )
 }
 
@@ -89,31 +123,39 @@ fun ScrollColumn(padding: PaddingValues, content: @Composable ColumnScope.() -> 
 @Composable
 fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        modifier.fillMaxWidth().background(Palette.Surface, RoundedCornerShape(12.dp)).padding(vertical = 4.dp),
+modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Palette.Surface).animateContentSize().padding(vertical = 6.dp),
         content = content,
     )
 }
 
+/** Section heading with an optional one-line explanation under it. */
 @Composable
-fun SectionTitle(text: String) {
-    Text(text.uppercase(), color = Palette.TextDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp))
+fun SectionTitle(text: String, subtitle: String? = null) {
+    Column(Modifier.padding(start = 6.dp, top = 10.dp, bottom = 2.dp)) {
+        Text(text, color = Palette.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        if (subtitle != null) Text(subtitle, color = Palette.TextDim, fontSize = 12.sp)
+    }
 }
 
 /** "Label ........ value" row; clickable when [onClick] is given (value shown in accent colour). */
 @Composable
-fun ValueRow(label: String, value: String, onClick: (() -> Unit)? = null, valueColor: Color? = null, sub: String? = null) {
+fun ValueRow(label: String, value: String, onClick: (() -> Unit)? = null, valueColor: Color? = null, sub: String? = null, help: String? = Help.row(label)) {
     Row(
-        Modifier.fillMaxWidth().let { if (onClick != null) it.clickable(onClick = onClick) else it }.padding(horizontal = 14.dp, vertical = 11.dp),
+        Modifier.fillMaxWidth().let { if (onClick != null) it.clickable(onClick = onClick) else it }.padding(start = 14.dp, end = 12.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(label, color = Palette.Text, fontSize = 15.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label, color = Palette.Text, fontSize = 15.sp, modifier = Modifier.weight(1f, fill = false))
+                if (help != null) InfoDot(label, help)
+            }
             if (sub != null) Text(sub, color = Palette.TextDim, fontSize = 12.sp)
         }
         Spacer(Modifier.width(8.dp))
         Text(value, color = valueColor ?: if (onClick != null) Palette.Accent else Palette.Text, fontSize = 15.sp,
             fontWeight = FontWeight.Medium, textAlign = TextAlign.End)
+        // A chevron marks the rows that open an editor.
+        if (onClick != null) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Palette.TextDim, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -220,24 +262,37 @@ fun InfoText(text: String) {
 
 @Composable
 fun BottomActions(vararg actions: Pair<String, () -> Unit>) {
-    Row(Modifier.fillMaxWidth().background(Palette.Surface).padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+    Row(
+        Modifier.fillMaxWidth().background(Palette.Surface).horizontalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+    ) {
         for ((label, action) in actions) {
-            TextButton(onClick = action) { Text(label, color = Palette.Accent) }
+            Tip(Help.action(label)) {
+                FilledTonalButton(
+                    onClick = action,
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = Palette.SurfaceHigh, contentColor = Palette.Accent),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                ) {
+                    actionIcon(label)?.let { Icon(it, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)) }
+                    Text(label)
+                }
+            }
         }
     }
 }
 
 @Composable
 fun Pill(text: String, selected: Boolean, onClick: () -> Unit) {
+    val bg by animateColorAsState(if (selected) Palette.Accent else Palette.SurfaceHigh, label = "pillBg")
+    val fg by animateColorAsState(if (selected) Color.Black else Palette.Text, label = "pillFg")
     Box(
-        Modifier.background(if (selected) Palette.Accent else Palette.SurfaceHigh, RoundedCornerShape(16.dp)).clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-    ) { Text(text, color = if (selected) Color.Black else Palette.Text, fontSize = 13.sp) }
+        Modifier.clip(RoundedCornerShape(18.dp)).background(bg).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp),
+    ) { Text(text, color = fg, fontSize = 13.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal) }
 }
 
 @Composable
 fun PillRow(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEachIndexed { i, o -> Pill(o, i == selected) { onSelect(i) } }
     }
 }
@@ -258,4 +313,13 @@ fun SimpleTable(headers: List<String>, rows: List<List<String>>, highlightRow: I
             HorizontalDivider(color = Palette.Divider, thickness = 0.5.dp)
         }
     }
+}
+
+private fun actionIcon(label: String): ImageVector? = when (label) {
+    "AR" -> Icons.Filled.ViewInAr
+    "Planner" -> Icons.Filled.Map
+    "Share" -> Icons.Filled.Share
+    "Timer" -> Icons.Filled.Timer
+    "Table", "EV table", "Interval table" -> Icons.Filled.TableChart
+    else -> null
 }

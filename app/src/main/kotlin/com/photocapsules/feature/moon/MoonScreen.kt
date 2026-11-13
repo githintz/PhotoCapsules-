@@ -133,7 +133,7 @@ private fun MoonInfo() {
             if (info.position.altitude < 0) Text("Moon below the horizon", color = Palette.TextDim, fontSize = 12.sp)
         }
     }
-    SectionTitle("Next main phases")
+    SectionTitle("Next main phases", "Upcoming new, quarter and full Moons")
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         next.forEach { ph ->
             Column(Modifier.background(Palette.Surface, RoundedCornerShape(10.dp)).clickable { setSkyTime(ph.time) }.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -150,7 +150,7 @@ private fun MoonInfo() {
         listOf("Sun", Fmt.az(sun.azimuth, 2), Fmt.deg(sun.altitude, 2)),
     ))
     InfoText("Light: " + DayEvents.lightType(ctx.instant, ctx.point).label)
-    SectionTitle("Events")
+    SectionTitle("Events", "Rise, set and transit today")
     Card {
         events.forEach { e ->
             EventRow(e, ctx.zone)
@@ -160,9 +160,9 @@ private fun MoonInfo() {
             }
         }
     }
-    SectionTitle("Moon & Sun elevation")
+    SectionTitle("Moon & Sun elevation", "Height above the horizon through the day")
     Card { ElevationChart(series, ctx.instant, showMoon = true) }
-    SectionTitle("Information")
+    SectionTitle("Information", "The Moon at the selected time")
     Card {
         val nextRise = DayEvents.nextRiseSet(SkyBody.MOON, true, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)
         val nextSet = DayEvents.nextRiseSet(SkyBody.MOON, false, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)

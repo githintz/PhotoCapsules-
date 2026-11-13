@@ -1,6 +1,24 @@
 package com.photocapsules.feature.planner
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.AddLocationAlt
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.LocationOff
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ViewInAr
+import androidx.compose.ui.draw.clip
+import com.photocapsules.ui.components.Help
+import com.photocapsules.ui.components.Tip
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -222,7 +240,10 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
         // Header
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-            Text("Planner", color = Palette.Text, fontSize = 18.sp, modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f)) {
+                Text("Planner", color = Palette.Text, fontSize = 18.sp)
+                Text("Red Pin = you · Black Pin = subject · swipe the panel for more", color = Palette.TextDim, fontSize = 11.sp, maxLines = 1)
+            }
             if (m.tool != MapTool.NONE || m.mode == PlannerMode.DRONE) TextButton(onClick = { dialog = "tool" }) { Text("Tool ⚙") }
         }
         if (!m.expanded) {
@@ -243,7 +264,7 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
             }
             // Map buttons (bottom right)
             Column(Modifier.align(Alignment.BottomEnd).padding(8.dp), horizontalAlignment = Alignment.End) {
-                if (toolbar) {
+                AnimatedVisibility(toolbar, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                     Row(Modifier.horizontalScroll(rememberScrollState()).background(Color(0xCC1E1E22), RoundedCornerShape(20.dp)).padding(4.dp)) {
                         MapButton(Icons.Filled.MyLocation, "GPS") {
                             scope.launch { LocationService.current(ctx)?.let { l -> m.moveRed(LatLon(l.latitude, l.longitude)); m.centerRequest++ } }
@@ -268,20 +289,21 @@ fun PlannerScreen(onBack: () -> Unit, go: (String) -> Unit) {
                     }
                 }
                 Row {
-                    SmallFab(Icons.Filled.Layers) { dialog = "settings" }
-                    SmallFab(if (toolbar) Icons.Filled.Close else Icons.Filled.Add) { toolbar = !toolbar }
+                    SmallFab(if (m.black == null) Icons.Filled.AddLocationAlt else Icons.Filled.LocationOff, "Black Pin") { pendingBlackToggle?.invoke() }
+                    SmallFab(Icons.Filled.Layers, "Layers") { dialog = "settings" }
+                    SmallFab(if (toolbar) Icons.Filled.Close else Icons.Filled.Add, "Toolbar") { toolbar = !toolbar }
                 }
             }
         }
         TimeBar(m.instant, m.zone, obs, m.fineTimeScale, dayData?.events.orEmpty(),
             onChange = { m.instant = it }, onCenterTap = { dialog = "date" }, onToggleFine = { m.fineTimeScale = !m.fineTimeScale })
-        Row(Modifier.fillMaxWidth().background(Palette.Surface), horizontalArrangement = Arrangement.SpaceEvenly) {
-            BottomItem("Find") { dialog = "find" }
-            BottomItem("AR") { AppState.ar = ArRequest(skyContext(m)); go(Routes.ar(ArMode.SUN_MOON)) }
-            BottomItem("Night AR") { AppState.ar = ArRequest(skyContext(m), meteorShowerCode = m.meteorCode); go(Routes.ar(ArMode.NIGHT)) }
-            BottomItem("Load") { dialog = "load" }
-            BottomItem("Save") { dialog = "save" }
-            BottomItem("More") { dialog = "more" }
+        Row(Modifier.fillMaxWidth().background(Palette.Surface).padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            BottomItem("Find", Icons.Filled.Search) { dialog = "find" }
+            BottomItem("AR", Icons.Filled.ViewInAr) { AppState.ar = ArRequest(skyContext(m)); go(Routes.ar(ArMode.SUN_MOON)) }
+            BottomItem("Night AR", Icons.Filled.NightsStay) { AppState.ar = ArRequest(skyContext(m), meteorShowerCode = m.meteorCode); go(Routes.ar(ArMode.NIGHT)) }
+            BottomItem("Load", Icons.Filled.FolderOpen) { dialog = "load" }
+            BottomItem("Save", Icons.Filled.Save) { dialog = "save" }
+            BottomItem("More", Icons.Filled.MoreHoriz) { dialog = "more" }
         }
     }
     when (dialog) {
@@ -304,20 +326,33 @@ private fun skyContext(m: PlannerModel) = SkyContext(m.observer, "Red Pin", m.in
 
 @Composable
 private fun MapButton(icon: ImageVector, label: String, active: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 2.dp)) {
-        IconButton(onClick = onClick, enabled = enabled) { Icon(icon, label, tint = if (!enabled) Palette.Divider else if (active) Palette.Accent else Color.White) }
-        Text(label, color = Palette.TextDim, fontSize = 9.sp)
+    val tint by animateColorAsState(if (!enabled) Palette.Divider else if (active) Palette.Accent else Color.White, label = "mapButton")
+    Tip(Help.action(label)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 2.dp)) {
+            IconButton(onClick = onClick, enabled = enabled) { Icon(icon, label, tint = tint) }
+            Text(label, color = if (active) Palette.Accent else Palette.TextDim, fontSize = 10.sp)
+        }
     }
 }
 
 @Composable
-private fun SmallFab(icon: ImageVector, onClick: () -> Unit) {
-    Box(Modifier.padding(4.dp).size(48.dp).background(Color(0xEE1E1E22), CircleShape), contentAlignment = Alignment.Center) {
-        IconButton(onClick = onClick) { Icon(icon, null, tint = Palette.Accent) }
+private fun SmallFab(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Tip(Help.action(label)) {
+        Box(Modifier.padding(4.dp).size(52.dp).background(Color(0xEE1E1E22), CircleShape), contentAlignment = Alignment.Center) {
+            IconButton(onClick = onClick) { Icon(icon, label, tint = Palette.Accent) }
+        }
     }
 }
 
 @Composable
-private fun BottomItem(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick) { Text(label, color = Palette.Accent, fontSize = 13.sp) }
+private fun BottomItem(label: String, icon: ImageVector, onClick: () -> Unit) {
+    Tip(Help.action(label)) {
+        Column(
+            Modifier.clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(icon, null, tint = Palette.Accent, modifier = Modifier.size(22.dp))
+            Text(label, color = Palette.Text, fontSize = 11.sp, maxLines = 1)
+        }
+    }
 }

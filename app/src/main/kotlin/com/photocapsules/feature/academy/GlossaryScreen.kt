@@ -35,6 +35,8 @@ private val terms = listOf(
     "NPF rule" to "Frédéric Michaud's rule taking aperture (N), pixel pitch (p) and focal length (f) into account: t = (35N + 30p)/f (simplified) or (16.856N + 0.0997f + 13.713p)/f (accurate), divided by cos(declination).",
     "Star trails" to "Stars rotate 360° per sidereal day (23 h 56 m 4 s): 15.04° per hour around the celestial poles.",
     "Exposure value (EV)" to "EV = log₂(N²/t) at ISO 100. Equivalent exposures keep N²/(t·ISO) constant; each ND stop doubles the exposure time.",
+    "Polar alignment" to "Pointing a mount's rotation axis at the celestial pole so it can follow the stars. Polaris is about 0.6° from the north pole and circles it once per sidereal day; the Polar Scope tool shows where on that circle it is now, as a clock position. Polar scopes show the sky upside down, so Polaris at its highest appears at 6 o'clock.",
+    "Hour angle" to "How far a star has turned past the meridian, in hours: 0 h at its highest point, 6 h a quarter turn later.",
     "Meteor ZHR" to "Zenithal hourly rate: meteors per hour for an observer under a perfectly dark sky with the radiant at the zenith. Expected rate ≈ ZHR × sin(radiant elevation).",
     "Eclipse magnitude" to "Solar: fraction of the Sun's diameter covered (ratio of diameters during totality/annularity). Lunar: fraction of the Moon's diameter inside the umbra (umbral) or penumbra (penumbral).",
 )
@@ -50,9 +52,9 @@ private val workflow = listOf(
 fun GlossaryScreen(onBack: () -> Unit) {
     AppScreen("Glossary & how-to", onBack) { p ->
         ScrollColumn(p) {
-            SectionTitle("Planning workflow")
+            SectionTitle("Planning workflow", "Four steps from idea to photo")
             Card { workflow.forEach { (t, d) -> Entry(t, d) } }
-            SectionTitle("Glossary")
+            SectionTitle("Glossary", "The terms used across the app")
             Card { terms.forEach { (t, d) -> Entry(t, d) } }
         }
     }

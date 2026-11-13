@@ -126,11 +126,11 @@ private fun SunInfo() {
             Text("Swipe to change time", color = Palette.TextDim, fontSize = 11.sp)
         }
     }
-    SectionTitle("Events")
+    SectionTitle("Events", "Everything that happens today, in order")
     Card { events.forEach { e -> EventRow(e, ctx.zone) } }
-    SectionTitle("Sun elevation")
+    SectionTitle("Sun elevation", "Height above the horizon through the day")
     Card { ElevationChart(series, ctx.instant, showMoon = false) }
-    SectionTitle("Information")
+    SectionTitle("Information", "The Sun at the selected time")
     Card {
         val d = day
         val nextRise = DayEvents.nextRiseSet(SkyBody.SUN, true, ctx.instant, ctx.point, 2.0, ctx.horizonHeightM)

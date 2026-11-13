@@ -23,8 +23,10 @@ PhotoCapsules is an Android app for planning landscape and astro photography, mo
 * **Sun / Moon**: daily events, elevation charts and information tables, monthly calendars, seasons, supermoons, perigees and apogees.
 * **Meteor showers**: the IMO 2026 working list, live meteors per hour, the night's activity graph and a calendar by class.
 * **Calculators**: Exposure (with ND filters and an EV table), DoF (classic, inverse and advanced CoC), FoV (classic and inverse), DoF table, hyperfocal table, Spot Stars (500 and NPF rules), Star Trails, Time-lapse, Subject distance, Focal-length match and Timer.
+* **Polar Scope**: where Polaris (or σ Octantis in the south) sits on a polar-scope reticle right now, as a clock position, with hour angle, sidereal time and the pole distance of date; inverted or naked-eye view and a red night-vision mode.
 * **AR**: Sun/Moon AR, Night AR (Milky Way, celestial equator and poles, RA/Dec grid, star-trail pattern, radiants), DoF/hyperfocal ground lines, a FoV frame and a Spot Stars declination meter. AR is corrected for magnetic declination and supports visual calibration.
 * **My Stuff**: plans, points of interest (including nearby Wikipedia places), KMZ backup and import, and settings.
+* **Interface**: tools grouped by task on the home screen with search; every tool has a subtitle and a help page; press and hold (or hover over) a button, or tap an ⓘ, for a pop-up explanation.
 * **Widgets**: Sun and light, Moon, Milky Way, and upcoming plans.
 
 ## Architecture

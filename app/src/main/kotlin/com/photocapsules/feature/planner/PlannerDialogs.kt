@@ -84,7 +84,10 @@ import java.util.Locale
 
 @Composable
 private fun Opt(text: String, enabled: Boolean = true, onClick: () -> Unit) {
-    Text(text, color = if (enabled) Palette.Accent else Palette.TextDim, modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(vertical = 10.dp))
+    Row(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
+        Text(text, color = if (enabled) Palette.Accent else Palette.TextDim, modifier = Modifier.weight(1f).padding(vertical = 10.dp))
+        com.photocapsules.ui.components.Help.row(text)?.let { com.photocapsules.ui.components.InfoDot(text, it) }
+    }
 }
 
 // ---------------- Find ----------------
@@ -430,9 +433,9 @@ fun MapSettingsDialog(m: PlannerModel, onDismiss: () -> Unit, onEclipsePick: () 
                 ValueRow("Map type", store.current.mapType.label, onClick = { sub = "type" })
                 ValueRow("Map tool", m.tool.label, onClick = { sub = "tool" })
                 Text("LAYERS", color = Palette.TextDim, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-                ValueRow("Sun", m.sunStyle.label, onClick = { sub = "sun" })
+                ValueRow("Sun", m.sunStyle.label, onClick = { sub = "sun" }, help = com.photocapsules.ui.components.Help.row("Sun layer"))
                 Check("Show Sun size", m.showSunSize) { m.showSunSize = it }
-                ValueRow("Moon", m.moonStyle.label, onClick = { sub = "moon" })
+                ValueRow("Moon", m.moonStyle.label, onClick = { sub = "moon" }, help = com.photocapsules.ui.components.Help.row("Moon layer"))
                 Check("Show Moon size", m.showMoonSize) { m.showMoonSize = it }
                 Check("Show real (geodesic) azimuth lines", m.realAzimuthLines) { m.realAzimuthLines = it }
                 Check("Milky Way", m.milkyWay) { m.milkyWay = it }
@@ -459,7 +462,9 @@ fun MapSettingsDialog(m: PlannerModel, onDismiss: () -> Unit, onEclipsePick: () 
 @Composable
 private fun Check(label: String, value: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = Palette.Text, modifier = Modifier.weight(1f).padding(start = 14.dp))
+        Text(label, color = Palette.Text, modifier = Modifier.weight(1f, fill = false).padding(start = 14.dp))
+        com.photocapsules.ui.components.Help.row(label)?.let { com.photocapsules.ui.components.InfoDot(label, it) }
+        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
         Switch(value, onChange)
     }
 }

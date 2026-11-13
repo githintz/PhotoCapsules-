@@ -318,13 +318,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                 ValueRow("Time format", if (s.use24h) "24 h" else "12 h", onClick = { store.update { it.copy(use24h = !it.use24h) } })
                 ValueRow("Supermoon definition", if (s.supermoonKm > 0) String.format(java.util.Locale.US, "Full Moon < %,.0f km", s.supermoonKm) else "Within 90 % of perigee", onClick = { dialog = "super" })
             }
-            SectionTitle("Augmented reality")
+            SectionTitle("Augmented reality", "How the camera overlays behave")
             Card {
                 ValueRow("Device usage height", Fmt.dist(s.deviceHeightM, s.units), onClick = { dialog = "height" })
                 SwitchRow("Use gyroscope", s.useGyroscope) { v -> store.update { it.copy(useGyroscope = v) } }
                 SwitchRow("Compass accuracy warning", s.showCompassWarning) { v -> store.update { it.copy(showCompassWarning = v) } }
             }
-            SectionTitle("Map & data")
+            SectionTitle("Map & data", "Map style and online lookups")
             Card {
                 SwitchRow("Show my position on the map", s.showMyLocation) { v -> store.update { it.copy(showMyLocation = v) } }
                 ValueRow("Elevation service", s.elevationProvider.label, onClick = { dialog = "elev" })

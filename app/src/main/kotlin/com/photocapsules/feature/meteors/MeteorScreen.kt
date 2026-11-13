@@ -213,12 +213,12 @@ private fun MeteorInfo(selected: String?, onSelect: (String) -> Unit) {
             }
         }
     }
-    SectionTitle("Active showers")
+    SectionTitle("Active showers", "Showers producing meteors on this date")
     Card {
         if (active.isEmpty()) ValueRow("No active showers", "")
         active.forEach { o -> ShowerRow(o, zone, where) { onSelect(o.shower.code); if (o.shower.hasPeak) setSkyTime(o.peak) } }
     }
-    SectionTitle("Activity tonight")
+    SectionTitle("Activity tonight", "Expected meteors per hour through the night")
     Card {
         Canvas(Modifier.fillMaxWidth().height(140.dp).padding(10.dp)) {
             if (nightCurve.isEmpty()) return@Canvas

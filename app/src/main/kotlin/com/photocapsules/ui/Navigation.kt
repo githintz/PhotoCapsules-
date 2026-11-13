@@ -1,5 +1,10 @@
 package com.photocapsules.ui
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -51,6 +56,7 @@ object Routes {
     const val BACKUP = "backup"
     const val SETTINGS = "settings"
     const val GLOSSARY = "glossary"
+    const val POLAR = "polar"
     fun ar(mode: ArMode) = "ar/${mode.name}"
 }
 
@@ -59,7 +65,14 @@ fun AppNavigation() {
     val nav = rememberNavController()
     val back: () -> Unit = { nav.popBackStack() }
     val go: (String) -> Unit = { nav.navigate(it) }
-    NavHost(nav, startDestination = Routes.MENU) {
+    // Screens slide in from the right and fade; going back reverses it.
+    NavHost(
+        nav, startDestination = Routes.MENU,
+        enterTransition = { slideInHorizontally(tween(260)) { it / 5 } + fadeIn(tween(260)) },
+        exitTransition = { fadeOut(tween(160)) },
+        popEnterTransition = { fadeIn(tween(220)) },
+        popExitTransition = { slideOutHorizontally(tween(220)) { it / 5 } + fadeOut(tween(220)) },
+    ) {
         composable(Routes.MENU) { MenuScreen(go) }
         composable(Routes.PLANNER) { PlannerScreen(back, go) }
         composable(Routes.SUN) { SunScreen(back, go) }
@@ -81,6 +94,7 @@ fun AppNavigation() {
         composable(Routes.BACKUP) { BackupScreen(back) }
         composable(Routes.SETTINGS) { SettingsScreen(back) }
         composable(Routes.GLOSSARY) { GlossaryScreen(back) }
+        composable(Routes.POLAR) { com.photocapsules.feature.polar.PolarScopeScreen(back) }
         composable("ar/{mode}") { entry ->
             val mode = runCatching { ArMode.valueOf(entry.arguments?.getString("mode") ?: "") }.getOrDefault(ArMode.SUN_MOON)
             ArScreen(mode, back)
